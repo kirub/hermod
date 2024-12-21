@@ -28,6 +28,7 @@ project "hermod"
 	filter "configurations:Debug"
 		defines { "_DEBUG" }
 		symbols "On"
+		targetsuffix "-d"
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }
@@ -46,15 +47,17 @@ project "tests"
 	files { "tests/**.h", "tests/**.cpp" }
 
 	links { "hermod" }
-	
-	postbuildcommands {
-		"{COPYFILE} libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]"
-	}
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
-		symbols "On"
+		symbols "On"	
+		postbuildcommands {
+			"{COPYFILE} libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]"
+		}
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 		optimize "On"
+		postbuildcommands {
+			"{COPYFILE} libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]"
+		}
