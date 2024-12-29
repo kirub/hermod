@@ -27,7 +27,7 @@ public:
 
 	virtual bool Send(proto::INetObject& Packet) = 0;
 	virtual bool Send(unsigned char* Data, std::size_t Len) = 0;
-	virtual const unsigned char* GetData() const = 0;
+	virtual const unsigned char* GetData() = 0;
 
 	virtual bool IsConnected() const = 0;
 	virtual bool IsClient() const = 0;
@@ -35,7 +35,10 @@ public:
 
 	virtual Error Update(TimeMs timeDelta) = 0;
 
-	void OnReceiveData(OnReceiveDataFunctor InReceiveDataCallback);
+	void OnReceiveData(OnReceiveDataFunctor InReceiveDataCallback)
+	{
+		ReceiveDataCallback = InReceiveDataCallback;
+	}
 
 protected:
 

@@ -5,12 +5,33 @@
 
 namespace serialization
 {
-    ReadStream::ReadStream(unsigned char* InBuffer, int InSizeInBytes)
+    ReadStream::ReadStream(int InSizeInBytes)
+        : ReadStream(new unsigned char[InSizeInBytes], InSizeInBytes, [](unsigned char* Ptr) { delete[] Ptr; })
+    {
+    }
+    
+    ReadStream::ReadStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter)
         : IStream(Reading)
         , Reader(InBuffer, InSizeInBytes)
         , Error(PROTO_ERROR_NONE)
         , BitsRead(0)
+        , DeleterFunc(InDeleter)
     {
+
+
+    }
+
+    ReadStream::ReadStream(unsigned char* InBuffer, int InSizeInBytes)
+        : ReadStream(InBuffer, InSizeInBytes, nullptr)
+    {
+    }
+
+    ReadStream::~ReadStream()
+    {
+        if (DeleterFunc)
+        {
+            DeleterFunc((unsigned char*)Reader.GetData());
+        }
     }
 
     void ReadStream::Reset()
@@ -119,6 +140,10 @@ namespace serialization
     int ReadStream::GetBitsRemaining() const
     {
         return Reader.GetBitsRemaining();
+    }
+    int ReadStream::GetBytesRemaining() const
+    {
+        return Reader.GetBitsRemaining() / 8;
     }
 
     int ReadStream::GetBytesProcessed() const

@@ -9,10 +9,21 @@ namespace serialization
     {
     public:
 
+        WriteStream(int InSizeInBytes);
         WriteStream(unsigned char* InBuffer, int InSizeInBytes);
+
+        virtual ~WriteStream();
         virtual void Reset();
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;
+
+        virtual int GetBytesProcessed() const override;
+        virtual int GetBitsProcessed() const override;
+        virtual int GetBitsRemaining() const override;
+        virtual int GetBytesRemaining() const override;
+        virtual int GetAlignBits() const override;
+        virtual int GetTotalBits() const override;
+        virtual int GetTotalBytes() const override;
 
     private:
 
@@ -22,19 +33,14 @@ namespace serialization
         virtual bool SerializeAlign();
         virtual bool SerializeCheck(const char* string);
 
-        int GetAlignBits() const;
         void Flush();
 
-        int GetBytesProcessed() const;
-        int GetBitsProcessed() const;
-        int GetBitsRemaining() const;
-        int GetTotalBits() const;
-        int GetTotalBytes() const;
 
         virtual int GetError() const;
 
         int Error;
         BitWriter Writer;
+        bool OwnsBuffer;
     };
 }
 

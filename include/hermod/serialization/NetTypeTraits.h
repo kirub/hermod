@@ -23,6 +23,8 @@ namespace serialization
 		std::is_same<const char*, std::decay_t<T>>,
 		std::is_same<char*, std::decay_t<T>>,
 		std::is_same<const unsigned char*, std::decay_t<T>>,
+		std::is_same<uint8_t*, std::decay_t<T>>,
+		std::is_same<const uint8_t*, std::decay_t<T>>,
 		std::is_same<unsigned char*, std::decay_t<T>>,
 		std::is_same<std::string, std::decay_t<T>>
 		> {

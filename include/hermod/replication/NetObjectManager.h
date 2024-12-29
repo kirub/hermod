@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <hermod/protocol/ConnectionInterface.h>
 
 namespace proto
 {
@@ -17,7 +18,8 @@ class NetObjectManager
 {
     NetObjectManager() = default;
 public:
-    using ObjectConstructor = std::function<std::unique_ptr<proto::INetObject>()>;
+    using RetNetObjectType = proto::INetObject*;
+    using ObjectConstructor = std::function<RetNetObjectType()>;
     template < std::derived_from<proto::INetProperty> T>
     using PropertyListenerWithT = std::function<void(const T&)>;
     using PropertyListener = std::function<void(const proto::INetProperty&)>;
@@ -25,12 +27,12 @@ public:
     using PropertiesListenerContainer = std::map< uint8_t, PropertyListener>;
     using ObjectsListenerContainer = std::map< uint32_t, PropertiesListenerContainer>;
 
-    static NetObjectManager& Get();
+    HERMOD_API static NetObjectManager& Get();
 
     template < std::derived_from<proto::INetObject> T>
-    bool Register()
+    void Register(const ObjectConstructor& Contructor = []() { return new T(); })
     {
-        return Factory.insert({ T::StaticClassId(), []() { return std::make_unique<T>(); } }).second;
+        Factory.insert({ T::StaticClassId(), Contructor });
     }
 
 
@@ -44,13 +46,16 @@ public:
 
     uint32_t NetObjectsCount() const;
 
-    std::unique_ptr<proto::INetObject> Instantiate(const uint32_t ObjectClassId) const;
+    RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
 
-    bool HandlePacket(serialization::ReadStream& Reader);
+    HERMOD_API RetNetObjectType HandlePacket(serialization::ReadStream& Reader);
+
+    void ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections);
 
 private:
 
     ObjectsConstructorContainer Factory;
     ObjectsListenerContainer ObjectListeners;
+    std::vector<std::shared_ptr<proto::INetObject>> NetObjects;
 };
 

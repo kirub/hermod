@@ -70,10 +70,10 @@ namespace utils
     HERMOD_API int bits_required(uint32_t min, uint32_t max);
 
 
-    template < std::size_t InvalidValue = ULLONG_MAX >
+    template < std::size_t InvalidValue = ULONG_MAX >
     class IIntrusiveElement
     {
-        uint8_t	Index = InvalidValue;
+        std::size_t	Index = InvalidValue;
 
     public:
 
@@ -84,7 +84,7 @@ namespace utils
 
         void Own(std::size_t IndexInParent)
         {
-            Index = static_cast<uint8_t>(IndexInParent);;
+            Index = static_cast<std::size_t>(IndexInParent);;
         }
         std::size_t Release()
         {

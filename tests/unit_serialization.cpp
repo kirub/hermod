@@ -12,8 +12,6 @@
 
 static const bool DISABLE_TIMEOUT = true;
 
-constexpr int MaxPacketSize = 1024;
-
 unsigned char* Buffer = new unsigned char[MaxPacketSize];
 serialization::WriteStream Writer(Buffer, MaxPacketSize);
 serialization::ReadStream Reader(Buffer, MaxPacketSize);

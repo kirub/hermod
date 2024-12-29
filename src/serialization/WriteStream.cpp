@@ -5,11 +5,25 @@
 
 namespace serialization
 {
+    WriteStream::WriteStream(int InSizeInBytes)
+        : WriteStream( new unsigned char[InSizeInBytes], InSizeInBytes)
+    {
+        OwnsBuffer = true;
+    }
     WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes)
         : IStream(Writing)
         , Error(PROTO_ERROR_NONE)
         , Writer(InBuffer, InSizeInBytes)
+        , OwnsBuffer(false)
     {
+    }
+
+    WriteStream::~WriteStream()
+    {
+        if (OwnsBuffer)
+        {
+            delete[] Writer.GetData();
+        }
     }
 
     void WriteStream::Reset()
@@ -97,6 +111,10 @@ namespace serialization
     int WriteStream::GetBitsRemaining() const
     {
         return GetTotalBits() - GetBitsProcessed();
+    }
+    int WriteStream::GetBytesRemaining() const
+    {
+        return Writer.GetBitsAvailable() / 8;
     }
 
     int WriteStream::GetTotalBits() const

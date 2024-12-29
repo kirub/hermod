@@ -80,15 +80,7 @@ bool UDPSocket::Bind(unsigned short port)
 	return true;
 }
 
-
-bool UDPSocket::SendTo(serialization::IStream& InStream, const Address& dest)
-{
-	const unsigned char* data = InStream.GetData();
-	int len = InStream.GetDataSize();
-	return SendTo(data, len, dest);
-}
-
-bool UDPSocket::SendTo(const unsigned char* data, int len, const Address& dest)
+bool UDPSocket::Send(const unsigned char* data, int len, const Address& dest)
 {
 	const sockaddr_in to = dest.ToSockAddrIn();
 	int sent_bytes = sendto(Handle, (const char*)data, len, 0, (const sockaddr*)&to, sizeof(sockaddr_in));
@@ -100,8 +92,7 @@ bool UDPSocket::SendTo(const unsigned char* data, int len, const Address& dest)
 
 	return true;
 }
-
-int UDPSocket::RecvFrom(Address& sender, unsigned char* data, int len)
+int UDPSocket::Receive(Address& sender, unsigned char* data, int len)
 {
 #if PLATFORM == PLATFORM_WINDOWS
 	typedef int socklen_t;
@@ -115,15 +106,3 @@ int UDPSocket::RecvFrom(Address& sender, unsigned char* data, int len)
 	}
 	return bytes;
 }
-
-bool UDPSocket::Initialize()
-{
-	WSADATA WsaData;
-	return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;
-}
-
-void UDPSocket::Shutdown()
-{
-	WSACleanup();
-}
-

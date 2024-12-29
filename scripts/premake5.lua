@@ -1,6 +1,7 @@
 workspace "hermod"
 	configurations { "Debug", "Release" }
 	platforms { "Win32", "Win64" }
+	location "../build"
 	
 	filter { "platforms:Win32" }
 		system "Windows"
@@ -14,14 +15,14 @@ project "hermod"
 	kind "SharedLib"
 	language "C++"
 	cppdialect "C++latest"
-	targetdir "libs/%{cfg.buildcfg}"
-	objdir ("build")
-	includedirs { "include" } 
+	targetdir "../libs/%{cfg.buildcfg}"
+	objdir ("../build")
+	includedirs { "../include" } 
     defines { "DLL_EXPORTS" }
 
 
-	files { "include/**.h", "src/**.cpp" }
-	removefiles {"tests/**"}
+	files { "../include/**.h", "../include/**.inl", "../src/**.cpp" }
+	removefiles {"../tests/**"}
    
 	links { "ws2_32" }
 
@@ -38,13 +39,14 @@ project "tests"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++latest"
-	targetdir "bin/%{cfg.buildcfg}"
-	debugdir "libs/%{cfg.buildcfg}"
-	objdir ("build")
-	includedirs { "include" } 
-	libdirs { "libs/%{cfg.buildcfg}" }
+	location "../build"
+	targetdir "../bin/%{cfg.buildcfg}"
+	debugdir "../libs/%{cfg.buildcfg}"
+	objdir ("../build")
+	includedirs { "../include" } 
+	libdirs { "../libs/%{cfg.buildcfg}" }
 
-	files { "tests/**.h", "tests/**.cpp" }
+	files { "../tests/**.h", "../tests/**.cpp" }
 
 	links { "hermod" }
 
@@ -52,12 +54,12 @@ project "tests"
 		defines { "DEBUG" }
 		symbols "On"	
 		postbuildcommands {
-			"{COPYFILE} libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]"
+			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]"
 		}
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 		optimize "On"
 		postbuildcommands {
-			"{COPYFILE} libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]"
+			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]"
 		}

@@ -2,8 +2,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <concepts>
 
 typedef double TimeMs;
+
+const unsigned int DefaultProtocolId = 666;
+const int MaxPacketSize = 1024;
 
 // compile time FNV-1a
 constexpr uint32_t Hash32_CT(const char* str, size_t n, uint32_t basis = UINT32_C(2166136261)) {
@@ -23,7 +27,18 @@ struct typeid_helper {
 #define TYPEID( T ) typeid_helper< Hash32_CT( #T, sizeof( #T ) - 1 ) >::value
 #define DECLARE_ID( T ) typename typeid_helper<#T> Id
 
+template <typename T> concept THasClassIdFunc = requires(T t) { 
+	{ t.StaticClassId() } -> std::same_as<uint32_t>; 
+};
 
+namespace type
+{
+	template < THasClassIdFunc T1, THasClassIdFunc T2 >
+	static bool is_a(const T2& NetObject)
+	{
+		return T1::StaticClassId() == NetObject.GetClassId();
+	}
+}
 
 #define CLASS_ID(ClassName)							\
 public:												\

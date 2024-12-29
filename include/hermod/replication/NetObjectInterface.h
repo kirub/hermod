@@ -45,8 +45,8 @@ public:
 	void AddProperty(INetProperty& Property);
 	void RemoveProperty(INetProperty& Property);
 
-private:
 	virtual void OnReceived() {}
+private:
 
 #pragma warning(push)
 #pragma warning(disable : 4251)

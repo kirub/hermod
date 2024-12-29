@@ -1,4 +1,4 @@
 #pragma once
 #include "framework.h"
 
-DECLARE_UNIT_TEST(Serialization);
+DECLARE_UNIT_TEST(Fragments);

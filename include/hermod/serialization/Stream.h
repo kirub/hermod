@@ -29,6 +29,14 @@ namespace serialization
         virtual const uint8_t* GetData() { return nullptr; };
         virtual int GetDataSize() const { return 0; }
 
+        virtual int GetAlignBits() const { return 0; }
+        virtual int GetBytesProcessed() const { return 0; }
+        virtual int GetBitsProcessed() const { return 0; }
+        virtual int GetBitsRemaining() const { return 0; }
+        virtual int GetBytesRemaining() const { return 0; }
+        virtual int GetTotalBits() const { return 0; }
+        virtual int GetTotalBytes() const { return 0; }
+
         bool IsWriting() const;
         bool IsReading() const;
         std::string Operation() const;
@@ -195,7 +203,7 @@ namespace serialization
         {
             if (IsWriting())
             {
-                assert(Properties.Length < (std::numeric_limits<uint16_t>::max()/8) - 1);
+                assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max()/8 - 1));
             }
             uint32_t Length = (uint32_t)Properties.Length;
             SerializeBits(Length, 16);
@@ -212,7 +220,7 @@ namespace serialization
         {
             if (IsWriting())
             {
-                assert(Properties.Length < (std::numeric_limits<uint16_t>::max()/8) - 1);
+                assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max()/8) - 1));
             }
             uint32_t Length = (uint32_t)Properties.Length;
             SerializeBits(Length, 16);

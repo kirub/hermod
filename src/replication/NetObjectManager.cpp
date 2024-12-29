@@ -20,7 +20,7 @@ uint32_t NetObjectManager::NetObjectsCount() const
     return static_cast<uint32_t>(Factory.size());
 }
 
-std::unique_ptr<proto::INetObject> NetObjectManager::Instantiate(const uint32_t ObjectClassId) const
+NetObjectManager::RetNetObjectType NetObjectManager::Instantiate(const uint32_t ObjectClassId) const
 {
     ObjectsConstructorContainer::const_iterator itFound = Factory.find(ObjectClassId);
     if (itFound == Factory.end())
@@ -31,27 +31,39 @@ std::unique_ptr<proto::INetObject> NetObjectManager::Instantiate(const uint32_t 
     return itFound->second();
 }
 
-bool NetObjectManager::HandlePacket(serialization::ReadStream& Reader)
+NetObjectManager::RetNetObjectType NetObjectManager::HandlePacket(serialization::ReadStream& Reader)
 {
     // process packet
     uint32_t NetObjectId = 0;
-    if (!Reader.Serialize(NetObjectId) || NetObjectId == 0)
+    if (Reader.Serialize(NetObjectId) && NetObjectId != 0)
     {
-        return false;
-    }
-
-    // Try instantiate packet
-    if (std::unique_ptr<proto::INetObject> NewNetObject = NetObjectManager::Get().Instantiate(NetObjectId))
-    {
-        std::optional<PropertiesListenerContainer> PropertiesListener;
-        ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectId);
-        if (itFoundObjectListener != ObjectListeners.end())
+        // Try instantiate packet
+        if (RetNetObjectType NewNetObject = NetObjectManager::Get().Instantiate(NetObjectId))
         {
-            PropertiesListener = itFoundObjectListener->second;
-        }
+            std::optional<PropertiesListenerContainer> PropertiesListener;
+            ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectId);
+            if (itFoundObjectListener != ObjectListeners.end())
+            {
+                PropertiesListener = itFoundObjectListener->second;
+            }
 
-        return NewNetObject->Serialize(Reader, PropertiesListener);
+            assert(NewNetObject->Serialize(Reader, PropertiesListener));
+            return NewNetObject;
+        }
     }
 
-    return false;
+    return nullptr;
+}
+
+void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections)
+{
+    for (std::shared_ptr<IConnection> Connection : Connections)
+    {
+        std::vector< std::shared_ptr<proto::INetObject>> NetObjectListFiltered;// = Connection->BuildConsiderList(NetObjects);
+
+        for (std::shared_ptr<proto::INetObject> NetObject : NetObjectListFiltered)
+        {
+            Connection->Send(*NetObject);
+        }
+    }
 }

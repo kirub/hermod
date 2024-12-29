@@ -2,11 +2,10 @@
 
 #include <stdio.h>
 #include <hermod/platform/Platform.h>
-#include <hermod/serialization/Stream.h>
-
-class Address;
+#include <hermod/socket/SocketInterface.h>
 
 class HERMOD_API UDPSocket
+	: public ISocket
 {
 public:
 
@@ -14,14 +13,10 @@ public:
 	UDPSocket(unsigned short port);
 	virtual ~UDPSocket();
 
-	bool SendTo(serialization::IStream& InStream, const Address& dest);
-	bool SendTo(const unsigned char* data, int len, const Address& dest);
-	int RecvFrom(Address& sender, unsigned char* data, int len);
+	virtual bool Send(const unsigned char* data, int len, const Address& dest) override;
+	virtual int Receive(Address& sender, unsigned char* data, int len) override;
 
 	bool SetOption(long Option, DWORD Value);
-
-	static bool Initialize();
-	static void Shutdown();
 
 private:
 	bool Create(int af, int type, int protocol);

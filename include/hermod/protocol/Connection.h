@@ -3,6 +3,7 @@
 #include "ConnectionInterface.h"
 #include "hermod/protocol/Protocol.h"
 #include "hermod/protocol/Protocol2.h"
+#include "hermod/protocol/FragmentHandler.h"
 
 #include <hermod/socket/UDPSocket.h>
 #include <hermod/socket/Address.h>
@@ -15,12 +16,15 @@
 namespace proto
 {
 	class INetObject;
+	class FragmentHandler;
 }
 
+template < typename T> concept TSocket = std::derived_from<T, ISocket>;
+
+template < TSocket SocketType>
 class Connection
 	: public IConnection
 {
-
 public:
 
 	Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
@@ -28,29 +32,29 @@ public:
 
 	virtual bool Send(proto::INetObject& Packet);
 	bool Send(unsigned char* Data, std::size_t Len);
-	const unsigned char* GetData() const;
+	virtual const unsigned char* GetData();
 
 	bool IsConnected() const;
 	bool IsClient() const;
 	bool IsServer() const;
 
-
-
 	Error Update(TimeMs timeDelta);
-
 private:
-	void OnPacketReceived(unsigned char* Data, const int Len);
 
-	static const int MaxPacketSize = 1024;
+	bool Flush();
+	void OnPacketReceived(serialization::ReadStream Stream);
+
+	static const int MaxStreamSize = 1024 * 64;
 
 	const TimeMs ConnectionTimeoutSec;
 	TimeMs LastPacketReceiveTimeout;
-	unsigned char ReceiveBuffer[MaxPacketSize];
-	unsigned char SendBuffer[MaxPacketSize];
 	bool IsServerConnection;
 	serialization::ReadStream Reader;
 	serialization::WriteStream Writer;
 	Address RemoteEndpoint;
-	UDPSocket Socket;
+	std::unique_ptr<ISocket> Socket;
 	std::unique_ptr<IProtocol> MyProtocol;
+	proto::FragmentHandler Fragments;
 };
+
+#include "Connection.inl"
