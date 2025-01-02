@@ -20,8 +20,8 @@ Connection<SocketType>::Connection(Address RemoteEndpoint, unsigned short Inboun
     , LastPacketReceiveTimeout(InConnectionTimeoutMs)
     , RemoteEndpoint(RemoteEndpoint)
     , IsServerConnection(!RemoteEndpoint)
-    , Writer(MaxStreamSize)
-    , Reader(MaxPacketSize)
+    , Writer(MaxMTUSize)
+    , Reader(MaxMTUSize)
     , MyProtocol(std::make_unique<Protocol>(DefaultProtocolId))
 {
     MyProtocol->OnPacketAcked(
@@ -47,10 +47,14 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
         return false;
     }
 
-    if (Writer.GetDataSize() > MaxPacketSize)
+    serialization::WriteStream BunchWriter(MaxStreamSize);
+    Packet.Serialize(BunchWriter);
+    BunchWriter.EndWrite();
+
+    if (BunchWriter.GetDataSize() > MaxPacketSize)
     {
         // Handle Packet Fragmentation
-        proto::FragmentHandler Fragments(Writer, MaxPacketSize);
+        proto::FragmentHandler Fragments(BunchWriter, MaxPacketSize);
         for (proto::FragmentHandler::ValueType Fragment : Fragments.Entries)
         {
             if (Fragment && !Send(*Fragment))
@@ -65,6 +69,8 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
 
         MyProtocol->Serialize(Writer);
         Packet.Serialize(Writer);
+        Writer.EndWrite();
+
         if (Socket->Send(Writer, RemoteEndpoint))
         {
             MyProtocol->OnPacketSent(Writer);
@@ -118,22 +124,33 @@ bool Connection<SocketType>::Flush()
 }
 
 template < TSocket SocketType>
-void Connection<SocketType>::OnPacketReceived(serialization::ReadStream InStream)
+void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStream)
 {
     // Try handle packet
     proto::INetObject* NetObject = NetObjectManager::Get().HandlePacket(InStream);
     if (!NetObject)
     {
         // Custom data
-        (*ReceiveDataCallback)((unsigned char*)InStream.GetData(), InStream.GetDataSize());
+        if (ReceiveDataCallback)
+        {
+            (*ReceiveDataCallback)((unsigned char*)InStream.GetData(), InStream.GetDataSize());
+        }
     }
     else if (type::is_a<proto::Fragment, proto::INetObject>(*NetObject))
     {
         Fragments.OnFragment(dynamic_cast<proto::Fragment*>(NetObject));
         if (Fragments.IsComplete())
         {
-            OnPacketReceived(Fragments.Gather());
+            serialization::ReadStream BunchStream = Fragments.Gather();
+            OnPacketReceived(BunchStream);
             Fragments.Reset();
+        }
+    }
+    else
+    {
+        if (ReceiveObjectCallback)
+        {
+            ReceiveObjectCallback(*NetObject);
         }
     }
 

@@ -9,7 +9,7 @@ namespace serialization
 	class WriteStream;
 }
 
-class Protocol
+class HERMOD_API Protocol
 	: public IProtocol
 {
 public:

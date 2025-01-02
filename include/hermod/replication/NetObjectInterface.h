@@ -24,7 +24,7 @@ class HERMOD_API INetObject
 {
 	using PropertiesContainer = utils::FixedIntrusiveArray<MaxPropertyPerObject, INetProperty>;
 
-	CLASS_ID(INetObject)
+	INTERNAL_NETCLASS_ID(INetObject)
 
 protected:
 	enum ENetObjectType
@@ -40,13 +40,15 @@ public:
 	INetObject();
 	INetObject(ENetObjectType InNetObjectType );
 
-	virtual bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>());
+	bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>());
 
 	void AddProperty(INetProperty& Property);
 	void RemoveProperty(INetProperty& Property);
 
 	virtual void OnReceived() {}
 private:
+	bool SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>());
+	virtual bool SerializeImpl(serialization::IStream& Stream);
 
 #pragma warning(push)
 #pragma warning(disable : 4251)

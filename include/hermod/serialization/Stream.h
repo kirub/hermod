@@ -16,6 +16,8 @@ namespace serialization
 	{
 
 	public:
+        using Deleter = void(*)(unsigned char*);
+
         enum EOperationType
         {
             Reading,
@@ -28,6 +30,7 @@ namespace serialization
         virtual int GetError() const = 0;
         virtual const uint8_t* GetData() { return nullptr; };
         virtual int GetDataSize() const { return 0; }
+        virtual bool WouldOverflow(int bits) const = 0;
 
         virtual int GetAlignBits() const { return 0; }
         virtual int GetBytesProcessed() const { return 0; }
@@ -43,6 +46,7 @@ namespace serialization
 
         virtual bool Align();
         virtual bool Guard(const char* InString);
+        virtual void EndWrite() {}
 
         template < typename ValueType >
         bool Serialize(ValueType& InOutValue, const serialization::NetPropertySettings<ValueType>& Properties = serialization::NetPropertySettings<ValueType>())
@@ -231,6 +235,18 @@ namespace serialization
             }
             return true;
         }
+        template <serialization::Buffer T>
+        bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
+        {
+            if (IsWriting())
+            {
+                assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max() / 8) - 1));
+            }
+            uint32_t Length = (uint32_t)Properties.Length;
+            SerializeBits(Length, 16);
+            SerializeBytes((uint8_t*)InOutValue, Length);
+            return true;
+        }
         template < serialization::Enumeration T >
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
@@ -240,7 +256,7 @@ namespace serialization
             {
                 PODTypeValue = std::to_underlying(InOutValue);
             }
-            Serialize(PODTypeValue, serialization::NetPropertySettings<std::underlying_type_t<T>>());
+            Serialize(PODTypeValue, { 0, Properties.Max });
             if (IsReading())
             {
                 InOutValue = static_cast<T>(PODTypeValue);

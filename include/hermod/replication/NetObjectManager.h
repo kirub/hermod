@@ -6,7 +6,8 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <hermod/protocol/ConnectionInterface.h>
+
+class IConnection;
 
 namespace proto
 {
@@ -32,14 +33,14 @@ public:
     template < std::derived_from<proto::INetObject> T>
     void Register(const ObjectConstructor& Contructor = []() { return new T(); })
     {
-        Factory.insert({ T::StaticClassId(), Contructor });
+        Factory.insert({ T::NetObjectId::value, Contructor });
     }
 
 
     template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>
     bool RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener)
     {
-        return ObjectListeners.insert({ NetObject::StaticClassId(), { Property.GetIndex(), Listener} }).second;
+        return ObjectListeners.insert({ NetObject::NetObjectId::value, { Property.GetIndex(), Listener} }).second;
     }
 
     void Unregister(const uint32_t ObjectClassId);

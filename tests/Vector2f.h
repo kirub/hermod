@@ -13,6 +13,8 @@ class Vector2f
     : public proto::INetObject
 {
 
+    CLASS_ID(Vector2f)
+
 public:
 
     Vector2f();

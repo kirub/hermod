@@ -12,6 +12,7 @@ namespace serialization
     
     ReadStream::ReadStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter)
         : IStream(Reading)
+        , Data(InBuffer)
         , Reader(InBuffer, InSizeInBytes)
         , Error(PROTO_ERROR_NONE)
         , BitsRead(0)
@@ -30,7 +31,7 @@ namespace serialization
     {
         if (DeleterFunc)
         {
-            DeleterFunc((unsigned char*)Reader.GetData());
+            DeleterFunc(Data);
         }
     }
 
@@ -80,6 +81,7 @@ namespace serialization
             Error = PROTO_ERROR_STREAM_OVERFLOW;
             return false;
         }
+        InBytesCount = InBytesCount + (4 - (InBytesCount % 4)); // Round up to next word
         Reader.ReadBytes((uint8_t*)OutData, InBytesCount);
         BitsRead += InBytesCount * 8;
         return true;
@@ -120,6 +122,11 @@ namespace serialization
 #else // #if PROTO_SERIALIZE_CHECKS
         return true;
 #endif // #if PROTO_SERIALIZE_CHECKS
+    }
+
+    bool ReadStream::WouldOverflow(int bytes) const
+    {
+        return Reader.WouldOverflow(bytes * 8);
     }
 
     const uint8_t* ReadStream::GetData()

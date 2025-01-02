@@ -4,22 +4,19 @@
 
 namespace serialization
 {
-    class HERMOD_API WriteStream :
+    class HERMOD_API FakeWriteStream :
         public IStream
     {
     public:
 
-        WriteStream(int InSizeInBytes);
-        WriteStream(unsigned char* InBuffer, int InSizeInBytes);
-        WriteStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter);
+        FakeWriteStream(int InSizeInBytes);
 
-        virtual ~WriteStream();
+        virtual ~FakeWriteStream();
         virtual void Reset();
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;
 
         virtual bool WouldOverflow(int bytes) const override;
-        virtual void EndWrite() override;
 
         virtual int GetBytesProcessed() const override;
         virtual int GetBitsProcessed() const override;
@@ -36,16 +33,9 @@ namespace serialization
         virtual bool SerializeBytes(const uint8_t* InData, int InBytesCount);
         virtual bool SerializeAlign();
         virtual bool SerializeCheck(const char* string);
-
-        void Flush();
-
-
         virtual int GetError() const;
 
         int Error;
-        unsigned char* Data;
-        BitWriter Writer;
-        Deleter DeleterFunc;
     };
 }
 

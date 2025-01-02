@@ -2,13 +2,9 @@
 
 #include <hermod/platform/Platform.h>
 #include <hermod/utilities/Types.h>
+#include <hermod/replication/NetObjectInterface.h>
 
 #include <cstddef>
-
-namespace proto
-{
-	class INetObject;
-}
 
 class HERMOD_API IConnection
 {
@@ -16,6 +12,7 @@ class HERMOD_API IConnection
 public:
 
 	using OnReceiveDataFunctor = void(*)(unsigned char*, const int);
+	using OnReceiveObjectFunctor = std::function<void(const proto::INetObject& Object)>;
 
 	enum Error
 	{
@@ -24,6 +21,13 @@ public:
 		InvalidRemoteAddress,
 		InvalidHeader
 	};
+
+	IConnection()
+		: ReceiveDataCallback(nullptr)
+		, ReceiveObjectCallback(nullptr)
+	{
+
+	}
 
 	virtual bool Send(proto::INetObject& Packet) = 0;
 	virtual bool Send(unsigned char* Data, std::size_t Len) = 0;
@@ -39,8 +43,13 @@ public:
 	{
 		ReceiveDataCallback = InReceiveDataCallback;
 	}
+	void OnReceiveObject(OnReceiveObjectFunctor InReceiveObjectCallback)
+	{
+		ReceiveObjectCallback = InReceiveObjectCallback;
+	}
 
 protected:
 
 	OnReceiveDataFunctor ReceiveDataCallback;
+	OnReceiveObjectFunctor ReceiveObjectCallback;
 };

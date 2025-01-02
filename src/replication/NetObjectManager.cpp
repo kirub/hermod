@@ -1,5 +1,6 @@
 #include <hermod/replication/NetObjectManager.h>
 
+#include <hermod/protocol/ConnectionInterface.h>
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/serialization/ReadStream.h>
 
@@ -47,7 +48,7 @@ NetObjectManager::RetNetObjectType NetObjectManager::HandlePacket(serialization:
                 PropertiesListener = itFoundObjectListener->second;
             }
 
-            assert(NewNetObject->Serialize(Reader, PropertiesListener));
+            assert(!NewNetObject->Serialize(Reader, PropertiesListener));
             return NewNetObject;
         }
     }

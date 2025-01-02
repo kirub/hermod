@@ -98,18 +98,13 @@ bool Protocol::Serialize(serialization::IStream& InStream)
 	const bool NoAckProvided = Ack == InvalidSequenceId;
 
 	uint32_t AckBitfield = 0;
-	if (InStream.IsReading())
-	{
-		AckPacket(Ack);
-	}
-	else if (InStream.IsWriting())
-	{
-		if (NoAckProvided)
-		{
-			return true;
-		}
 
-		AckBitfield = ComputeAckBitfield(Ack);
+	if (InStream.IsWriting())
+	{
+		if (!NoAckProvided)
+		{
+			AckBitfield = ComputeAckBitfield(Ack);
+		}
 	}
 
 	if (!InStream.Serialize(AckBitfield))
@@ -124,6 +119,8 @@ bool Protocol::Serialize(serialization::IStream& InStream)
 		{
 			return true;
 		}
+
+		AckPacket(Ack);
 
 		for (int BitIdx = 0; BitIdx < HistorySize - 1; ++BitIdx)
 		{

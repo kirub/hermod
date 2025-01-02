@@ -5,21 +5,25 @@
 class MockBigPacket
     : public proto::INetObject
 {
+    CLASS_ID(MockBigPacket)
 public:
 
-    MockBigPacket(int NumberOfFragments)
+    MockBigPacket(int NumberOfFragments, bool FillWithData = true)
         : NumberOfFrags(NumberOfFragments)
         , bufferSize(0)
         , buffer( nullptr )
     {
         Init(NumberOfFragments);
-        FillWithData();
-        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments); });
+        if (FillWithData)
+        {
+            Fill();
+        }
+        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, false); });
     }
     MockBigPacket(const MockBigPacket& ToCopy)
         : NumberOfFrags(ToCopy.NumberOfFrags)
         , bufferSize(ToCopy.bufferSize)
-        , buffer(new uint8_t[bufferSize])
+        , buffer(nullptr)
     {
         Init(NumberOfFrags);
         memcpy(buffer, ToCopy.buffer, bufferSize);
@@ -33,8 +37,9 @@ public:
 
     void Init(int NumberOfFragments)
     {
+        assert(NumberOfFragments > 0);
         NumberOfFrags = NumberOfFragments;
-        bufferSize = MaxPacketSize * NumberOfFragments;
+        bufferSize = (MaxPacketSize - 19) + (NumberOfFragments-1) * MaxPacketSize;
         if (bufferSize > 0)
         {
             if (buffer)
@@ -42,10 +47,11 @@ public:
                 delete[] buffer;
             }
             buffer = new uint8_t[bufferSize];
+            memset(buffer, 0, sizeof(uint8_t) * bufferSize);
         }
     }
 
-    void FillWithData()
+    void Fill()
     {
         static std::string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
@@ -63,9 +69,9 @@ public:
         return memcmp(buffer, Rhs.buffer, std::min(bufferSize, Rhs.bufferSize)) == 0;
     }
 
-    virtual bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>())
+    virtual bool SerializeImpl(serialization::IStream& Stream) override
     {
-        return Stream.Serialize(buffer, { bufferSize });        
+        return Stream.Serialize<uint8_t*>(buffer, { bufferSize });
     }
 
     using OnReceivedCallbackType = std::function<void(const MockBigPacket&)>;
@@ -75,7 +81,10 @@ public:
     }
     virtual void OnReceived() 
     {
-        Callback(*this);
+        if (Callback)
+        {
+            Callback(*this);
+        }
     }
 private:
 
@@ -108,7 +117,7 @@ public:
 
     virtual bool Send(const unsigned char* data, int len, const Address& dest) override
     {
-        assert(bufferSize < len);
+        assert(bufferSize > len);
         memcpy(buffer, data, len);
         SendBufferSize = len;
         SendAddr = dest;
@@ -118,7 +127,7 @@ public:
     { 
         if (len > 0)
         {
-            assert(len < SendBufferSize);
+            assert(len > SendBufferSize);
             sender = SendAddr;
             memcpy(data, buffer, SendBufferSize);
 
@@ -129,6 +138,15 @@ public:
 };
 
 using TestableConnection = Connection<MockSocket>;
+
+void OnReceiveObject(const proto::INetObject& ReceivedPacket, bool& ReceivedEqualSent, const MockBigPacket& SentPacket)
+{
+    const MockBigPacket& BigPacketReceived = dynamic_cast<const MockBigPacket&>(ReceivedPacket);
+    ReceivedEqualSent = BigPacketReceived == SentPacket;
+
+    assert(ReceivedEqualSent);
+}
+
 
 template <uint8_t FragmentCount>
 void UnitTest_SendFragmented()
@@ -143,16 +161,9 @@ void UnitTest_SendFragmented()
     MockBigPacket SentPacket = Packet;
     Packet.Reset();
 
-    Packet.SetOnReceivedCallback(
-        [&ReceivedEqualSent, SentPacket](const MockBigPacket& ReceivedPacket)
-        {
-            ReceivedEqualSent = ReceivedPacket == SentPacket;
-        }
-    );
+    Connection.OnReceiveObject(std::bind(OnReceiveObject, std::placeholders::_1, ReceivedEqualSent, SentPacket));
 
     Connection.Update(33.3f);
-
-    assert(ReceivedEqualSent);
 }
 
 //Client: 127.0.0.1:30000 300001

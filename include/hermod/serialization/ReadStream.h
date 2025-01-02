@@ -11,16 +11,17 @@ namespace serialization
         public IStream
     {
     public:
-        using Deleter = void(*)(unsigned char*);
 
         ReadStream(int InSizeInBytes);
         ReadStream(unsigned char* InBuffer, int InSizeInBytes);
         ReadStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter);
         virtual ~ReadStream();
 
-        virtual void Reset();
-        virtual const uint8_t* GetData();
-        virtual int GetDataSize() const;
+        virtual void Reset() override;
+        virtual const uint8_t* GetData() override;
+        virtual int GetDataSize() const override;
+
+        virtual bool WouldOverflow(int bits) const override;
 
         virtual int GetBytesProcessed() const override;
         virtual int GetBitsProcessed() const override;
@@ -43,6 +44,7 @@ namespace serialization
 
         int Error;
         int BitsRead;
+        unsigned char* Data;
         BitReader Reader;
         Deleter DeleterFunc;
     };

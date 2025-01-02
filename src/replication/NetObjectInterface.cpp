@@ -49,38 +49,50 @@ namespace proto
 	{
 	}
 
-	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
+	bool INetObject::SerializeImpl(serialization::IStream& Stream)
 	{
-		bool HasError = false;
-		uint32_t NetObjectClassId = GetClassId();
-		Stream.Serialize(NetObjectClassId);
+		return true;
+	}
 
+	bool INetObject::SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
+	{
 		for (INetProperty* Property : Properties)
 		{
 			if (Property && Property->IsDirty())
 			{
-				if (Property->Serialize(Stream))
+				if (!Property->Serialize(Stream))
 				{
-					Property->SetDirty(false);
-
-					if (Mapper)
-					{
-						NetObjectManager::PropertiesListenerContainer::const_iterator ListenerFound = Mapper->find(static_cast<uint8_t>(Property->GetIndex()));
-						if (ListenerFound != Mapper->end())
-						{
-							ListenerFound->second(*Property);
-						}
-					}
-				}
-				else
-				{
-					HasError = true;
 					break;
+				}
+
+				Property->SetDirty(false);
+
+				if (Mapper)
+				{
+					NetObjectManager::PropertiesListenerContainer::const_iterator ListenerFound = Mapper->find(static_cast<uint8_t>(Property->GetIndex()));
+					if (ListenerFound != Mapper->end())
+					{
+						ListenerFound->second(*Property);
+					}
 				}
 			}
 		}
 
-		if (Stream.IsReading())
+		return false;
+	}
+
+	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
+	{
+		bool HasError = false;
+		if (Stream.IsWriting())
+		{
+			uint32_t NetObjectClassId = GetClassId();
+			HasError = !Stream.Serialize(NetObjectClassId);
+		}
+		HasError &= !SerializeProperties(Stream, Mapper);
+		HasError &= !SerializeImpl(Stream);
+
+		if (!HasError && Stream.IsReading())
 		{
 			OnReceived();
 		}

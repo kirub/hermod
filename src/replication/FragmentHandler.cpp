@@ -31,7 +31,7 @@ namespace proto
 	{
 		unsigned char* DataStart = (unsigned char*)Stream.GetData();
 		const int DataSize = Stream.GetDataSize();
-		int ProcessedBytes = 0;
+		std::size_t ProcessedBytes = 0;
 		for (int FragmentId = 0; FragmentId < NumFragments; ++FragmentId)
 		{
 			std::size_t NumBytesToCopy = std::max(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));

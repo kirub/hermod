@@ -9,12 +9,10 @@
 
 
 
-class Protocol2
+class HERMOD_API Protocol2
 	: public IProtocol
 {
 public:
-
-	using OnPacketAckedCallbackType = std::function<void(uint16_t)>;
 
 	Protocol2(unsigned int InId);
 

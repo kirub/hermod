@@ -1,4 +1,4 @@
-#include <hermod/serialization/WriteStream.h>
+#include <hermod/serialization/FakeWriteStream.h>
 #include <hermod/utilities/Error.h>
 #include <hermod/utilities/Utils.h>
 #include <hermod/utilities/Hash.h>
@@ -6,20 +6,8 @@
 namespace serialization
 {
     WriteStream::WriteStream(int InSizeInBytes)
-        : WriteStream(new unsigned char[InSizeInBytes], InSizeInBytes, [](unsigned char* Ptr) { delete[] Ptr; })
-    {
-    }
-    WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes)
-        : WriteStream(new unsigned char[InSizeInBytes], InSizeInBytes, nullptr)
-    {
-    }
-
-    WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter)
         : IStream(Writing)
-        , Data(InBuffer)
-        , Error(PROTO_ERROR_NONE)
-        , Writer(InBuffer, InSizeInBytes)
-        , DeleterFunc(InDeleter)
+        , SizeMax(InSizeInBytes)
     {
     }
 
@@ -60,9 +48,9 @@ namespace serialization
     {
         assert(InData);
         assert(InBytesCount >= 0);
-        Writer.WriteAlign(8);
+        if (!SerializeAlign())
+            return false;
         Writer.WriteBytes(InData, InBytesCount);
-        Writer.WriteAlign(32);
         return true;
     }
 
@@ -95,11 +83,6 @@ namespace serialization
     bool WriteStream::WouldOverflow(int bytes) const
     {
         return Writer.WouldOverflow(bytes * 8);
-    }
-
-    void WriteStream::EndWrite()
-    {
-        Flush();
     }
 
     const uint8_t* WriteStream::GetData()
