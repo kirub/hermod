@@ -31,6 +31,7 @@ namespace serialization
         virtual const uint8_t* GetData() { return nullptr; };
         virtual int GetDataSize() const { return 0; }
         virtual bool WouldOverflow(int bits) const = 0;
+        virtual void AdjustSize(int InNumBytes) {}
 
         virtual int GetAlignBits() const { return 0; }
         virtual int GetBytesProcessed() const { return 0; }
@@ -44,8 +45,8 @@ namespace serialization
         bool IsReading() const;
         std::string Operation() const;
 
-        virtual bool Align();
-        virtual bool Guard(const char* InString);
+        bool Align(uint32_t AlignToBits = 8);
+        bool Guard(const char* InString);
         virtual void EndWrite() {}
 
         template < typename ValueType >
@@ -209,7 +210,7 @@ namespace serialization
             {
                 assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max()/8 - 1));
             }
-            uint32_t Length = Properties.Length == 0 ? InOutValue.length() + 1 : (uint32_t)Properties.Length;
+            uint32_t Length = (uint32_t)(Properties.Length == 0 ? InOutValue.length() + 1 : (uint32_t)Properties.Length);
             SerializeBits(Length, 16);
             if (IsReading())
             {
@@ -290,7 +291,7 @@ namespace serialization
 		virtual bool SerializeBits(uint32_t& value, int bits) = 0;
 		virtual bool SerializeBytes(const uint8_t* data, int bytes) = 0;
 		virtual bool SerializeInteger(int32_t& value, int32_t min, int32_t max) = 0;
-        virtual bool SerializeAlign() = 0;
+        virtual bool SerializeAlign(uint32_t AlignToBits = 8) = 0;
         virtual bool SerializeCheck(const char* InString) = 0;
 
         EOperationType OpType;

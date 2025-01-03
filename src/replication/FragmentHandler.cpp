@@ -29,7 +29,7 @@ namespace proto
 		: NumFragments((Stream.GetDataSize() / MaxFragmentSize) + ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1)
 		, Entries(NumFragments)
 	{
-		NumFragments = Stream.GetDataSize() / MaxFragmentSize;
+		NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
 		NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
 		unsigned char* DataStart = (unsigned char*)Stream.GetData();
 		const int DataSize = Stream.GetDataSize();
@@ -66,8 +66,11 @@ namespace proto
 		return std::find(start, end, nullptr) == end;
 	}
 
-	void FragmentHandler::OnFragment(FragmentPtr InFragment)
+	void FragmentHandler::OnFragment(uint8_t FragmentCount, uint8_t FragmentId, FragmentPtr InFragment)
 	{
+		InFragment->Count = FragmentCount;
+		InFragment->Id = FragmentId;
+
 		if (Entries.capacity() == 0)
 		{
 			Entries.resize(InFragment->Count);

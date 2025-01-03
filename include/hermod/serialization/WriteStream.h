@@ -31,11 +31,11 @@ namespace serialization
 
     private:
 
-        virtual bool SerializeInteger(int32_t& InValue, int32_t InMin, int32_t InMax);
-        virtual bool SerializeBits(uint32_t& InValue, int InBitsCount);
-        virtual bool SerializeBytes(const uint8_t* InData, int InBytesCount);
-        virtual bool SerializeAlign();
-        virtual bool SerializeCheck(const char* string);
+        virtual bool SerializeInteger(int32_t& InValue, int32_t InMin, int32_t InMax) override;
+        virtual bool SerializeBits(uint32_t& InValue, int InBitsCount) override;
+        virtual bool SerializeBytes(const uint8_t* InData, int InBytesCount) override;
+        virtual bool SerializeAlign(uint32_t AlignToBits = 8) override;
+        virtual bool SerializeCheck(const char* string) override;
 
         void Flush();
 

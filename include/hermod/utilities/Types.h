@@ -10,6 +10,8 @@ const unsigned int DefaultProtocolId = 666;
 const int MaxMTUSize = 1472;
 const int MaxFragmentSize = 1024;
 const int MaxStreamSize = 1024 * 64;
+const int ProtocolHeaderSize = 10;
+const int FragmentHeaderSize = 6;
 
 // compile time FNV-1a
 constexpr uint32_t Hash32_CT(const char* str, size_t n, uint32_t basis = UINT32_C(2166136261)) {
@@ -39,6 +41,12 @@ namespace type
 	static bool is_a(const T2& NetObject)
 	{
 		return T1::NetObjectId::value == NetObject.GetClassId();
+	}
+
+	template < THasClassIdFunc T1>
+	static bool is_a(const uint32_t& NetObjectId)
+	{
+		return T1::NetObjectId::value == NetObjectId;
 	}
 }
 /*#define INTERNAL_NETCLASS_ID(ClassName)				\

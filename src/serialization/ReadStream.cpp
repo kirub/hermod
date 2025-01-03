@@ -42,6 +42,11 @@ namespace serialization
         BitsRead = 0;
     }
 
+    void ReadStream::AdjustSize(int InNumBytes) 
+    {
+        Reader.SetSize(InNumBytes);
+    }
+
     bool ReadStream::SerializeInteger(int32_t& OutValue, int32_t InMin, int32_t InMax)
     {
         assert(InMin < InMax);
@@ -86,15 +91,15 @@ namespace serialization
         return true;
     }
 
-    bool ReadStream::SerializeAlign()
+    bool ReadStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
-        const int AlignBits = Reader.GetAlignBits();
+        const int AlignBits = Reader.GetAlignBits(AlignToBits);
         if (Reader.WouldOverflow(AlignBits))
         {
             Error = PROTO_ERROR_STREAM_OVERFLOW;
             return false;
         }
-        if (!Reader.ReadAlign())
+        if (!Reader.ReadAlign(AlignToBits))
             return false;
         BitsRead += AlignBits;
         return true;

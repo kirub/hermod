@@ -178,9 +178,9 @@ namespace serialization
 
         return true;
     }
-    bool IStream::Align()
+    bool IStream::Align(uint32_t AlignToBits /*= 8*/)
     {
-        if (!SerializeAlign())
+        if (!SerializeAlign(AlignToBits))
         {
             return false;
         }

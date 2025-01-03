@@ -101,15 +101,15 @@ void UnitTest_SerializeVector2f()
     NetObjectManager::Get().Register<Vector2f>();
 
     Vector2f MyOgVector(25.123f, 96.456f);
+    Vector2f MyReadVector;
 
-    NetObjectManager::Get().SerializeObject(MyOgVector, Writer);
+    MyOgVector.Serialize(Writer);
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
-    Vector2f* MyReadVector = NetObjectManager::Get().SerializeObject<Vector2f>(Reader);
+    MyReadVector.Serialize(Reader);
 
-    assert(MyReadVector);
     assert(Writer.GetDataSize() == Reader.GetDataSize());
     assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(MyOgVector == *MyReadVector);
+    assert(MyOgVector == MyReadVector);
 }
 
 //Client: 127.0.0.1:30000 300001

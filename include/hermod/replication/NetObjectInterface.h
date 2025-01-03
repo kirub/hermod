@@ -40,6 +40,7 @@ public:
 	INetObject();
 	INetObject(ENetObjectType InNetObjectType );
 
+	bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>());
 	bool SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>());
 
 	void AddProperty(INetProperty& Property);

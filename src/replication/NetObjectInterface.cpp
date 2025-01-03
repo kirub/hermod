@@ -53,6 +53,18 @@ namespace proto
 		return true;
 	}
 
+	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
+	{
+		bool HasError = !SerializeProperties(Stream, Mapper);
+
+		if (!HasError && Stream.IsReading())
+		{
+			OnReceived();
+		}
+
+		return !HasError;
+	}
+
 	bool INetObject::SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
 	{
 		bool HasError = false;
@@ -78,7 +90,7 @@ namespace proto
 		}
 		HasError &= !SerializeImpl(Stream);
 
-		return HasError;
+		return !HasError;
 	}
 
 	void INetObject::AddProperty(INetProperty& Property)

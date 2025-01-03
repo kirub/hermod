@@ -39,7 +39,7 @@ public:
     {
         assert(NumberOfFragments > 0);
         NumberOfFrags = NumberOfFragments;
-        bufferSize = (MaxFragmentSize - 8) + (NumberOfFragments-1) * MaxFragmentSize;
+        bufferSize = (MaxFragmentSize - 2) + (NumberOfFragments - 1) * MaxFragmentSize;
         if (bufferSize > 0)
         {
             if (buffer)
@@ -138,7 +138,7 @@ public:
         {
             assert(RecvBufferHead < SendBufferSize);
             sender = SendAddr;
-            int ReceiveBytesCount = std::min(SendBufferSize, len);
+            int ReceiveBytesCount = std::min(SendBufferSize, MaxFragmentSize + ProtocolHeaderSize + FragmentHeaderSize);
             memcpy(data, buffer + RecvBufferHead, ReceiveBytesCount);
             RecvBufferHead = (RecvBufferHead + ReceiveBytesCount) % bufferSize;
         }

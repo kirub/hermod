@@ -28,8 +28,6 @@ namespace proto
 
 	bool Fragment::SerializeImpl(serialization::IStream& Stream)
 	{
-		return Stream.Serialize(Count) &&
-			Stream.Serialize(Id, { Count }) &&
-			Stream.Serialize(Data, { DataSize });
+		return Stream.Serialize(Data, { DataSize });
 	}
 }

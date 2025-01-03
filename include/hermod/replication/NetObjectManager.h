@@ -10,6 +10,7 @@ class IConnection;
 
 namespace serialization
 {
+    class IStream;
     class ReadStream;
     class WriteStream;
 }
@@ -51,25 +52,25 @@ public:
 
     uint32_t NetObjectsCount() const;
 
-    RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
+    HERMOD_API RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
+    template < typename... Args >
+    RetNetObjectType Instantiate(const uint32_t ObjectClassId, Args&&... InArgs) const
+    {
+        ObjectsConstructorContainer::const_iterator itFound = Factory.find(ObjectClassId);
+        if (itFound == Factory.end())
+        {
+            return nullptr;
+        }
+
+        return itFound->second(std::forward<Args>(InArgs)...);
+    }
 
     //HERMOD_API RetNetObjectType HandlePacket(serialization::ReadStream& Reader);
 
     void ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections);
     //HERMOD_API bool SerializeObject(proto::INetObject*& NetObject, serialization::IStream& Stream);
 
-    HERMOD_API bool SerializeObject(proto::INetObject& NetObject, serialization::WriteStream& Stream);
-    HERMOD_API bool SerializeObject(proto::INetObject*& NetObject, serialization::ReadStream& Stream);
-    template <std::derived_from<proto::INetObject> T>
-    T* SerializeObject(serialization::ReadStream& Stream)
-    {
-        proto::INetObject* NewObject = nullptr;
-        if (!SerializeObject(NewObject, Stream))
-        {
-            return nullptr;
-        }
-        return dynamic_cast<T*>(NewObject);
-    }
+    HERMOD_API std::optional<PropertiesListenerContainer> GetPropertiesListeners(proto::INetObject& NetObject) const;
 
 
 private:

@@ -65,9 +65,9 @@ namespace serialization
         return true;
     }
 
-    bool WriteStream::SerializeAlign()
+    bool WriteStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
-        Writer.WriteAlign();
+        Writer.WriteAlign(AlignToBits);
         return true;
     }
 

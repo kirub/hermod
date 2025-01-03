@@ -77,44 +77,14 @@ bool NetObjectManager::SerializeObject(proto::INetObject*& NetObject, serializat
 
     return HasError;
 }*/
-bool NetObjectManager::SerializeObject(proto::INetObject& NetObject, serialization::WriteStream& Stream)
+std::optional<NetObjectManager::PropertiesListenerContainer> NetObjectManager::GetPropertiesListeners(proto::INetObject& NetObject) const
 {
-    bool HasError = false;
-    uint32_t NetObjectClassId = NetObject.GetClassId();
-    HasError = !Stream.Serialize(NetObjectClassId);
-
     std::optional<PropertiesListenerContainer> PropertiesListener;
-    ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectClassId);
+    ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObject.GetClassId());
     if (itFoundObjectListener != ObjectListeners.end())
     {
         PropertiesListener = itFoundObjectListener->second;
     }
 
-    HasError &= !NetObject.SerializeProperties(Stream, PropertiesListener);
-
-    return !HasError;
-}
-bool NetObjectManager::SerializeObject(proto::INetObject*& NetObject, serialization::ReadStream& Stream)
-{
-    bool HasError = false;
-    uint32_t NetObjectClassId = 0;
-    HasError = !Stream.Serialize(NetObjectClassId);
-    if (NetObject = NetObjectManager::Get().Instantiate(NetObjectClassId))
-    {
-        std::optional<PropertiesListenerContainer> PropertiesListener;
-        ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectClassId);
-        if (itFoundObjectListener != ObjectListeners.end())
-        {
-            PropertiesListener = itFoundObjectListener->second;
-        }
-
-        HasError &= !NetObject->SerializeProperties(Stream, PropertiesListener);
-
-        if (!HasError)
-        {
-            NetObject->OnReceived();
-        }
-    }
-
-    return !HasError;
+    return PropertiesListener;
 }
