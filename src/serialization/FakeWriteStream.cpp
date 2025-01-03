@@ -5,67 +5,95 @@
 
 namespace serialization
 {
-    WriteStream::WriteStream(int InSizeInBytes)
+    bool FakeWriteStream::SimulateBitpacker = true;
+
+    FakeWriteStream::FakeWriteStream(int InSizeInBytes)
         : IStream(Writing)
         , SizeMax(InSizeInBytes)
+        , CurrentSize(0)
+        , Error(PROTO_ERROR_NONE)
     {
     }
 
-    WriteStream::~WriteStream()
+    FakeWriteStream::~FakeWriteStream()
     {
-        if (DeleterFunc)
-        {
-            delete[] Data;
-        }
     }
 
-    void WriteStream::Reset()
+    void FakeWriteStream::Reset()
     {
-        Writer.Reset();
+        CurrentSize = 0;
         Error = PROTO_ERROR_NONE;
     }
 
-    bool WriteStream::SerializeInteger(int32_t& InValue, int32_t InMin, int32_t InMax)
+    bool FakeWriteStream::SerializeInteger(int32_t& InValue, int32_t InMin, int32_t InMax)
     {
         assert(InMin < InMax);
         assert(InValue >= InMin);
         assert(InValue <= InMax);
         const int Bits = utils::bits_required(InMin, InMax);
-        uint32_t UnsignedValue = InValue - InMin;
-        Writer.WriteBits(UnsignedValue, Bits);
-        return true;
+        uint32_t Unused = 0;
+        return SerializeBits(Unused, Bits);
     }
 
-    bool WriteStream::SerializeBits(uint32_t& InValue, int InBitsCount)
+    bool FakeWriteStream::SerializeBits(uint32_t& InValue, int InBitsCount)
     {
         assert(InBitsCount > 0);
         assert(InBitsCount <= 32);
-        Writer.WriteBits(InValue, InBitsCount);
+        AccumulatedBits += InBitsCount;
+        if (AccumulatedBits > 32)
+        {
+            CurrentSize += 32;
+            AccumulatedBits = AccumulatedBits % 32;
+        }
         return true;
     }
 
-    bool WriteStream::SerializeBytes(const uint8_t* InData, int InBytesCount)
+    bool FakeWriteStream::SerializeBytes(const uint8_t* InData, int InBytesCount)
     {
         assert(InData);
         assert(InBytesCount >= 0);
         if (!SerializeAlign())
             return false;
-        Writer.WriteBytes(InData, InBytesCount);
+
+
+        assert((AccumulatedBits % 8) == 0);
+
+        uint32_t Unused = 0;
+        int RemainingBytes = std::min(InBytesCount, (4 - (CurrentSize % 32)) % 4);
+        for (int idx = 0; idx < RemainingBytes; ++idx)
+            SerializeBits(Unused, 8);
+        
+        if (InBytesCount == RemainingBytes)
+            return true;
+
+        assert(AccumulatedBits == 0);
+
+        int MaxWords = (InBytesCount - RemainingBytes) / 4;
+        CurrentSize += MaxWords * 4;
+
+        RemainingBytes = InBytesCount - (MaxWords * 4);
+        assert(RemainingBytes < 4);
+
+        for(int idx = 0; idx < RemainingBytes; ++idx)
+        {
+            SerializeBits(Unused, 8);
+        }
         return true;
     }
 
-    bool WriteStream::SerializeAlign()
+    bool FakeWriteStream::SerializeAlign()
     {
-        Writer.WriteAlign();
+        uint32_t unused = 0;
+        SerializeBits(unused, GetAlignBits());
         return true;
     }
 
-    int WriteStream::GetAlignBits() const
+    int FakeWriteStream::GetAlignBits() const
     {
-        return Writer.GetAlignBits();
+        return (8 - (CurrentSize % 8)) % 8;
     }
 
-    bool WriteStream::SerializeCheck(const char* string)
+    bool FakeWriteStream::SerializeCheck(const char* string)
     {
 #if PROTO_SERIALIZE_CHECKS
         SerializeAlign();
@@ -75,57 +103,62 @@ namespace serialization
         return true;
     }
 
-    void WriteStream::Flush()
+    void FakeWriteStream::Flush()
     {
-        Writer.FlushBits();
+        CurrentSize += AccumulatedBits;
+        AccumulatedBits = 0;
     }
-
-    bool WriteStream::WouldOverflow(int bytes) const
-    {
-        return Writer.WouldOverflow(bytes * 8);
-    }
-
-    const uint8_t* WriteStream::GetData()
+    
+    void FakeWriteStream::EndWrite()
     {
         Flush();
-        return Writer.GetData();
     }
 
-    int WriteStream::GetDataSize() const
+    bool FakeWriteStream::WouldOverflow(int bytes) const
+    {
+        return CurrentSize + AccumulatedBits + bytes * 8 > SizeMax;
+    }
+
+    const uint8_t* FakeWriteStream::GetData()
+    {
+        return nullptr;
+    }
+
+    int FakeWriteStream::GetDataSize() const
     {
         return GetBytesProcessed();
     }
 
-    int WriteStream::GetBytesProcessed() const
+    int FakeWriteStream::GetBytesProcessed() const
     {
-        return Writer.GetBytesWritten();
+        return (CurrentSize + 7) / 8;
     }
 
-    int WriteStream::GetBitsProcessed() const
+    int FakeWriteStream::GetBitsProcessed() const
     {
-        return Writer.GetBitsWritten();
+        return CurrentSize;
     }
 
-    int WriteStream::GetBitsRemaining() const
+    int FakeWriteStream::GetBitsRemaining() const
     {
         return GetTotalBits() - GetBitsProcessed();
     }
-    int WriteStream::GetBytesRemaining() const
+    int FakeWriteStream::GetBytesRemaining() const
     {
-        return Writer.GetBitsAvailable() / 8;
+        return (SizeMax - GetBitsProcessed()) / 8;
     }
 
-    int WriteStream::GetTotalBits() const
+    int FakeWriteStream::GetTotalBits() const
     {
-        return Writer.GetTotalBytes() * 8;
+        return CurrentSize + AccumulatedBits;
     }
 
-    int WriteStream::GetTotalBytes() const
+    int FakeWriteStream::GetTotalBytes() const
     {
-        return Writer.GetTotalBytes();
+        return ( CurrentSize + AccumulatedBits + 7) / 8;
     }
 
-    int WriteStream::GetError() const
+    int FakeWriteStream::GetError() const
     {
         return Error;
     }

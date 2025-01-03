@@ -39,7 +39,7 @@ public:
     {
         assert(NumberOfFragments > 0);
         NumberOfFrags = NumberOfFragments;
-        bufferSize = (MaxPacketSize - 19) + (NumberOfFragments-1) * MaxPacketSize;
+        bufferSize = (MaxFragmentSize - 8) + (NumberOfFragments-1) * MaxFragmentSize;
         if (bufferSize > 0)
         {
             if (buffer)
@@ -100,40 +100,49 @@ class MockSocket
 {
     Address SendAddr;
     int SendBufferSize;
-    static const int bufferSize = 1450;
+    static const int bufferSize = MaxStreamSize;
     uint8_t buffer[bufferSize];
+    int RecvBufferHead;
 
 public:
 
     MockSocket(unsigned short port)
     {
-        memset(buffer, 0, sizeof(uint8_t) * bufferSize);
+        Reset();
     }
 
     void Reset()
     {
+        SendBufferSize = 0;
+        RecvBufferHead = 0;
         memset(buffer, 0, sizeof(uint8_t) * bufferSize);
+    }
+
+    int DataAvailable()
+    {
+        return std::max(0, SendBufferSize - RecvBufferHead);
     }
 
     virtual bool Send(const unsigned char* data, int len, const Address& dest) override
     {
-        assert(bufferSize > len);
-        memcpy(buffer, data, len);
-        SendBufferSize = len;
+        assert(bufferSize > SendBufferSize + len);
+        memcpy(buffer + SendBufferSize, data, len);
+        SendBufferSize += len;
         SendAddr = dest;
         return true;
     }
     virtual int Receive(Address& sender, unsigned char* data, int len) override
     { 
-        if (len > 0)
+        int DataOnSocket = DataAvailable();
+        if (len > 0 && DataOnSocket > 0)
         {
-            assert(len > SendBufferSize);
+            assert(RecvBufferHead < SendBufferSize);
             sender = SendAddr;
-            memcpy(data, buffer, SendBufferSize);
-
-            Reset();
+            int ReceiveBytesCount = std::min(SendBufferSize, len);
+            memcpy(data, buffer + RecvBufferHead, ReceiveBytesCount);
+            RecvBufferHead = (RecvBufferHead + ReceiveBytesCount) % bufferSize;
         }
-        return SendBufferSize;
+        return DataOnSocket;
     }
 };
 

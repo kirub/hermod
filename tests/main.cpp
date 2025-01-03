@@ -5,7 +5,7 @@
 
 int main()
 {
-	//unit::CheckPassed(UnitTests_Serialization);
+	unit::CheckPassed(UnitTests_Serialization);
 	unit::CheckPassed(UnitTests_Fragments);
 
 	return 0;

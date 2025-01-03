@@ -81,7 +81,6 @@ namespace serialization
             Error = PROTO_ERROR_STREAM_OVERFLOW;
             return false;
         }
-        InBytesCount = InBytesCount + (4 - (InBytesCount % 4)); // Round up to next word
         Reader.ReadBytes((uint8_t*)OutData, InBytesCount);
         BitsRead += InBytesCount * 8;
         return true;
@@ -136,7 +135,7 @@ namespace serialization
 
     int ReadStream::GetDataSize() const
     {
-        return GetBytesProcessed();
+        return GetBytesRead();
     }
 
     int ReadStream::GetBitsProcessed() const

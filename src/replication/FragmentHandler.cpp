@@ -7,7 +7,7 @@ namespace proto
 
 	const int FragmentHandler::Index(uint16_t Sequence) const
 	{
-		return Sequence % MaxEntries;
+		return Sequence % NumFragments;
 	}
 
 	void FragmentHandler::Reset()
@@ -26,15 +26,17 @@ namespace proto
 	}
 
 	FragmentHandler::FragmentHandler(serialization::WriteStream& Stream, const std::size_t& MaxFragmentSize)
-		: NumFragments(Stream.GetDataSize() / MaxFragmentSize + ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1)
+		: NumFragments((Stream.GetDataSize() / MaxFragmentSize) + ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1)
 		, Entries(NumFragments)
 	{
+		NumFragments = Stream.GetDataSize() / MaxFragmentSize;
+		NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
 		unsigned char* DataStart = (unsigned char*)Stream.GetData();
 		const int DataSize = Stream.GetDataSize();
 		std::size_t ProcessedBytes = 0;
 		for (int FragmentId = 0; FragmentId < NumFragments; ++FragmentId)
 		{
-			std::size_t NumBytesToCopy = std::max(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));
+			std::size_t NumBytesToCopy = std::min(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));
 			Entries.emplace_back(new Fragment((uint8_t)FragmentId, NumFragments, DataStart + ProcessedBytes, NumBytesToCopy));
 			ProcessedBytes += NumBytesToCopy;
 		}
@@ -42,10 +44,10 @@ namespace proto
 
 	serialization::ReadStream FragmentHandler::Gather()
 	{
-		unsigned char* DestBuffer = new unsigned char[MaxPacketSize * NumFragments];
+		unsigned char* DestBuffer = new unsigned char[MaxFragmentSize * NumFragments];
 		std::size_t Offset = 0;
 		unsigned char* NotUsed = std::accumulate(Entries.begin(), Entries.end(), DestBuffer,
-			[&Offset, MaxSize = std::size_t(MaxPacketSize * NumFragments)](unsigned char* StreamBuffer, FragmentPtr InFragment)
+			[&Offset, MaxSize = std::size_t(MaxFragmentSize * NumFragments)](unsigned char* StreamBuffer, FragmentPtr InFragment)
 			{
 				assert(Offset + InFragment->DataSize < MaxSize);
 				Offset += InFragment->DataSize;
@@ -54,7 +56,7 @@ namespace proto
 				return StreamBuffer;
 			}
 		);
-		return { DestBuffer, MaxPacketSize * NumFragments, [](unsigned char* ptr) { delete[] ptr; } };
+		return { DestBuffer, MaxFragmentSize * NumFragments, [](unsigned char* ptr) { delete[] ptr; } };
 	}
 
 	bool FragmentHandler::IsComplete() const
@@ -66,9 +68,9 @@ namespace proto
 
 	void FragmentHandler::OnFragment(FragmentPtr InFragment)
 	{
-		if (Entries.max_size() == 0)
+		if (Entries.capacity() == 0)
 		{
-			Entries.reserve(InFragment->Count);
+			Entries.resize(InFragment->Count);
 			NumFragments = InFragment->Count;
 		}
 		else

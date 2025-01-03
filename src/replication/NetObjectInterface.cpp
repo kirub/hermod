@@ -35,17 +35,16 @@ namespace proto
 		if (!HasError && Dirty)
 		{
 			HasError = !SerializeImpl(Stream);
-		}
+			SetDirty(false);
+		}		
 
-		return HasError;
+		return !HasError;
 	}
 
 	INetObject::INetObject()
-		: INetObject(Object)
 	{
 	}
 	INetObject::INetObject(ENetObjectType InNetObjectType)
-		: NetObjectType(*this, InNetObjectType)
 	{
 	}
 
@@ -56,16 +55,16 @@ namespace proto
 
 	bool INetObject::SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
 	{
+		bool HasError = false;
 		for (INetProperty* Property : Properties)
 		{
-			if (Property && Property->IsDirty())
+			if (Property)
 			{
-				if (!Property->Serialize(Stream))
+				HasError = !Property->Serialize(Stream);
+				if (HasError)
 				{
 					break;
 				}
-
-				Property->SetDirty(false);
 
 				if (Mapper)
 				{
@@ -77,25 +76,7 @@ namespace proto
 				}
 			}
 		}
-
-		return false;
-	}
-
-	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
-	{
-		bool HasError = false;
-		if (Stream.IsWriting())
-		{
-			uint32_t NetObjectClassId = GetClassId();
-			HasError = !Stream.Serialize(NetObjectClassId);
-		}
-		HasError &= !SerializeProperties(Stream, Mapper);
 		HasError &= !SerializeImpl(Stream);
-
-		if (!HasError && Stream.IsReading())
-		{
-			OnReceived();
-		}
 
 		return HasError;
 	}

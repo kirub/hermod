@@ -4,7 +4,7 @@
 namespace proto
 {
 	Fragment::Fragment()
-		: Fragment(0u, 0u, nullptr, MaxPacketSize)
+		: Fragment(0u, 0u, nullptr, MaxFragmentSize)
 	{
 	}
 

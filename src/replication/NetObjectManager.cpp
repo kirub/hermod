@@ -3,6 +3,7 @@
 #include <hermod/protocol/ConnectionInterface.h>
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/serialization/ReadStream.h>
+#include <hermod/serialization/WriteStream.h>
 
 #include <utility>
 
@@ -32,30 +33,6 @@ NetObjectManager::RetNetObjectType NetObjectManager::Instantiate(const uint32_t 
     return itFound->second();
 }
 
-NetObjectManager::RetNetObjectType NetObjectManager::HandlePacket(serialization::ReadStream& Reader)
-{
-    // process packet
-    uint32_t NetObjectId = 0;
-    if (Reader.Serialize(NetObjectId) && NetObjectId != 0)
-    {
-        // Try instantiate packet
-        if (RetNetObjectType NewNetObject = NetObjectManager::Get().Instantiate(NetObjectId))
-        {
-            std::optional<PropertiesListenerContainer> PropertiesListener;
-            ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectId);
-            if (itFoundObjectListener != ObjectListeners.end())
-            {
-                PropertiesListener = itFoundObjectListener->second;
-            }
-
-            assert(!NewNetObject->Serialize(Reader, PropertiesListener));
-            return NewNetObject;
-        }
-    }
-
-    return nullptr;
-}
-
 void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections)
 {
     for (std::shared_ptr<IConnection> Connection : Connections)
@@ -67,4 +44,77 @@ void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnect
             Connection->Send(*NetObject);
         }
     }
+}
+/*
+bool NetObjectManager::SerializeObject(proto::INetObject*& NetObject, serialization::IStream& Stream)
+{
+    bool HasError = false;
+    uint32_t NetObjectClassId = 0;
+    if (Stream.IsWriting())
+    {
+        NetObjectClassId = NetObject->GetClassId();
+    }
+    HasError = !Stream.Serialize(NetObjectClassId);
+    if (Stream.IsReading())
+    {
+        NetObject = NetObjectManager::Get().Instantiate(NetObjectClassId);
+    }
+
+    std::optional<PropertiesListenerContainer> PropertiesListener;
+    ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectClassId);
+    if (itFoundObjectListener != ObjectListeners.end())
+    {
+        PropertiesListener = itFoundObjectListener->second;
+    }
+
+    HasError &= !NetObject->SerializeProperties(Stream, PropertiesListener);
+    HasError &= !NetObject->SerializeImpl(Stream);
+
+    if (!HasError && Stream.IsReading())
+    {
+        NetObject->OnReceived();
+    }
+
+    return HasError;
+}*/
+bool NetObjectManager::SerializeObject(proto::INetObject& NetObject, serialization::WriteStream& Stream)
+{
+    bool HasError = false;
+    uint32_t NetObjectClassId = NetObject.GetClassId();
+    HasError = !Stream.Serialize(NetObjectClassId);
+
+    std::optional<PropertiesListenerContainer> PropertiesListener;
+    ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectClassId);
+    if (itFoundObjectListener != ObjectListeners.end())
+    {
+        PropertiesListener = itFoundObjectListener->second;
+    }
+
+    HasError &= !NetObject.SerializeProperties(Stream, PropertiesListener);
+
+    return !HasError;
+}
+bool NetObjectManager::SerializeObject(proto::INetObject*& NetObject, serialization::ReadStream& Stream)
+{
+    bool HasError = false;
+    uint32_t NetObjectClassId = 0;
+    HasError = !Stream.Serialize(NetObjectClassId);
+    if (NetObject = NetObjectManager::Get().Instantiate(NetObjectClassId))
+    {
+        std::optional<PropertiesListenerContainer> PropertiesListener;
+        ObjectsListenerContainer::const_iterator itFoundObjectListener = ObjectListeners.find(NetObjectClassId);
+        if (itFoundObjectListener != ObjectListeners.end())
+        {
+            PropertiesListener = itFoundObjectListener->second;
+        }
+
+        HasError &= !NetObject->SerializeProperties(Stream, PropertiesListener);
+
+        if (!HasError)
+        {
+            NetObject->OnReceived();
+        }
+    }
+
+    return !HasError;
 }

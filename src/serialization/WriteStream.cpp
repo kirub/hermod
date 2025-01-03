@@ -10,7 +10,7 @@ namespace serialization
     {
     }
     WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes)
-        : WriteStream(new unsigned char[InSizeInBytes], InSizeInBytes, nullptr)
+        : WriteStream(InBuffer, InSizeInBytes, nullptr)
     {
     }
 
@@ -62,7 +62,6 @@ namespace serialization
         assert(InBytesCount >= 0);
         Writer.WriteAlign(8);
         Writer.WriteBytes(InData, InBytesCount);
-        Writer.WriteAlign(32);
         return true;
     }
 

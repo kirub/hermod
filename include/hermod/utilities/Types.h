@@ -8,7 +8,8 @@ typedef double TimeMs;
 
 const unsigned int DefaultProtocolId = 666;
 const int MaxMTUSize = 1472;
-const int MaxPacketSize = 1024;
+const int MaxFragmentSize = 1024;
+const int MaxStreamSize = 1024 * 64;
 
 // compile time FNV-1a
 constexpr uint32_t Hash32_CT(const char* str, size_t n, uint32_t basis = UINT32_C(2166136261)) {

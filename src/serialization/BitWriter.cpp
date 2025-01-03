@@ -65,8 +65,6 @@ namespace serialization
         if (headBytes == bytes)
             return;
 
-        FlushBits();
-
         assert(GetAlignBits() == 0);
 
         int numWords = (bytes - headBytes) / 4;
@@ -84,8 +82,6 @@ namespace serialization
         int tailStart = headBytes + numWords * 4;
         int tailBytes = bytes - tailStart;
         assert(tailBytes >= 0 && tailBytes < 4);
-        for (int i = 0; i < 4-tailBytes; ++i)
-            WriteBits(0, 8);
         for (int i = 0; i < tailBytes; ++i)
             WriteBits(data[tailStart + i], 8);
 
@@ -101,9 +97,8 @@ namespace serialization
             assert(m_wordIndex < m_numWords);
             m_data[m_wordIndex] = htonl(uint32_t(m_scratch & 0xFFFFFFFF));
             m_scratch >>= 32;
-            uint32_t BitsWritten = std::min(m_scratchBits, 32);
-            m_bitsWritten += BitsWritten;
-            m_scratchBits -= BitsWritten;
+            m_bitsWritten += 32;
+            m_scratchBits = std::max(m_scratchBits - 32, 0);
             m_wordIndex++;
         }
     }

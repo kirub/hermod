@@ -48,13 +48,13 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
     }
 
     serialization::WriteStream BunchWriter(MaxStreamSize);
-    Packet.Serialize(BunchWriter);
+    NetObjectManager::Get().SerializeObject(Packet, BunchWriter);
     BunchWriter.EndWrite();
 
-    if (BunchWriter.GetDataSize() > MaxPacketSize)
+    if (BunchWriter.GetDataSize() > MaxMTUSize)
     {
         // Handle Packet Fragmentation
-        proto::FragmentHandler Fragments(BunchWriter, MaxPacketSize);
+        proto::FragmentHandler Fragments(BunchWriter, MaxFragmentSize);
         for (proto::FragmentHandler::ValueType Fragment : Fragments.Entries)
         {
             if (Fragment && !Send(*Fragment))
@@ -68,7 +68,7 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
         Writer.Reset();
 
         MyProtocol->Serialize(Writer);
-        Packet.Serialize(Writer);
+        NetObjectManager::Get().SerializeObject(Packet, Writer);
         Writer.EndWrite();
 
         if (Socket->Send(Writer, RemoteEndpoint))
@@ -127,30 +127,30 @@ template < TSocket SocketType>
 void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStream)
 {
     // Try handle packet
-    proto::INetObject* NetObject = NetObjectManager::Get().HandlePacket(InStream);
-    if (!NetObject)
+    proto::INetObject* NetObject = nullptr;
+    if( NetObjectManager::Get().SerializeObject(NetObject, InStream) && NetObject)
+    {
+        if (type::is_a<proto::Fragment, proto::INetObject>(*NetObject))
+        {
+            Fragments.OnFragment(dynamic_cast<proto::Fragment*>(NetObject));
+            if (Fragments.IsComplete())
+            {
+                serialization::ReadStream BunchStream = Fragments.Gather();
+                OnPacketReceived(BunchStream);
+                Fragments.Reset();
+            }
+        }
+        else if (ReceiveObjectCallback)
+        {
+            ReceiveObjectCallback(*NetObject);
+        }
+    }
+    else
     {
         // Custom data
         if (ReceiveDataCallback)
         {
             (*ReceiveDataCallback)((unsigned char*)InStream.GetData(), InStream.GetDataSize());
-        }
-    }
-    else if (type::is_a<proto::Fragment, proto::INetObject>(*NetObject))
-    {
-        Fragments.OnFragment(dynamic_cast<proto::Fragment*>(NetObject));
-        if (Fragments.IsComplete())
-        {
-            serialization::ReadStream BunchStream = Fragments.Gather();
-            OnPacketReceived(BunchStream);
-            Fragments.Reset();
-        }
-    }
-    else
-    {
-        if (ReceiveObjectCallback)
-        {
-            ReceiveObjectCallback(*NetObject);
         }
     }
 
@@ -192,29 +192,35 @@ IConnection::Error Connection<SocketType>::Update(TimeMs TimeDelta)
 
     Address Sender;
     Reader.Reset();
-    int bytes_read = Socket->Receive(Sender, Reader);
-    if (IsServer() && !RemoteEndpoint && Sender)
+    while (int bytes_read = Socket->Receive(Sender, Reader))
     {
-        RemoteEndpoint = Sender;
-    }
-
-    if (bytes_read > 0)
-    {
-        if (Sender != RemoteEndpoint)
+        if (IsServer() && !RemoteEndpoint && Sender)
         {
-            printf(__FUNCTION__ ": Invalid remote address. Discard!\n");
-            return InvalidRemoteAddress;
+            RemoteEndpoint = Sender;
         }
 
-        if (!MyProtocol->Serialize(Reader))
+        if (bytes_read > 0)
         {
-            printf(__FUNCTION__ ": Invalid header. Discard!\n");
-            return InvalidHeader;
+            if (Sender != RemoteEndpoint)
+            {
+                printf(__FUNCTION__ ": Invalid remote address. Discard!\n");
+                return InvalidRemoteAddress;
+            }
+
+            if (!MyProtocol->Serialize(Reader))
+            {
+                printf(__FUNCTION__ ": Invalid header. Discard!\n");
+                return InvalidHeader;
+            }
+
+            LastPacketReceiveTimeout = ConnectionTimeoutSec;
+
+            while (Reader.GetBytesRemaining() > 0)
+            {
+                OnPacketReceived(Reader);
+            }
+
         }
-
-        LastPacketReceiveTimeout = ConnectionTimeoutSec;
-
-        OnPacketReceived(Reader);
     }
 
     return None;

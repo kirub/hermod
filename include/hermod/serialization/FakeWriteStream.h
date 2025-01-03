@@ -8,6 +8,7 @@ namespace serialization
         public IStream
     {
     public:
+        static bool SimulateBitpacker;
 
         FakeWriteStream(int InSizeInBytes);
 
@@ -16,6 +17,7 @@ namespace serialization
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;
 
+        virtual void EndWrite() override;
         virtual bool WouldOverflow(int bytes) const override;
 
         virtual int GetBytesProcessed() const override;
@@ -34,8 +36,12 @@ namespace serialization
         virtual bool SerializeAlign();
         virtual bool SerializeCheck(const char* string);
         virtual int GetError() const;
+        void Flush();
 
         int Error;
+        int SizeMax;
+        int AccumulatedBits;
+        int CurrentSize;
     };
 }
 

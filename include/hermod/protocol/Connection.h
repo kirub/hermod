@@ -44,8 +44,6 @@ private:
 	bool Flush();
 	void OnPacketReceived(serialization::ReadStream& Stream);
 
-	static const int MaxStreamSize = 1024 * 64;
-
 	const TimeMs ConnectionTimeoutSec;
 	TimeMs LastPacketReceiveTimeout;
 	bool IsServerConnection;

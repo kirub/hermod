@@ -160,7 +160,7 @@ namespace serialization
 		{
 		}
 		NetPropertySettings(const std::size_t InLength)
-			: Length(InLength+1)
+			: Length(InLength)
 		{
 		}
 		NetPropertySettings(const char* InString)
