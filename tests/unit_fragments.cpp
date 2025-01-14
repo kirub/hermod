@@ -2,6 +2,8 @@
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/protocol/Connection.h>
 
+#include <gtest/gtest.h>
+
 class MockBigPacket
     : public proto::INetObject
 {
@@ -32,7 +34,10 @@ public:
         , buffer(nullptr)
     {
         Init(NumberOfFrags);
-        memcpy(buffer, ToCopy.buffer, bufferSize);
+        if (buffer != nullptr && ToCopy.buffer != nullptr && bufferSize>0)
+        {
+            memcpy(buffer, ToCopy.buffer, bufferSize);
+        }
     }
 
     virtual ~MockBigPacket()
@@ -60,7 +65,7 @@ public:
     {
         static std::string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
-        unsigned int StopAt = FillWithData == Filled ? bufferSize : bufferSize - (MaxFragmentSize / 2);
+        unsigned int StopAt = (unsigned int) (FillWithData == Filled ? bufferSize : bufferSize - (MaxFragmentSize / 2));
         for (unsigned int i = 0; i < bufferSize; i++)
             buffer[i] = charset[rand() % charset.length()];
     }
@@ -167,7 +172,7 @@ void OnReceiveObject(const proto::INetObject& ReceivedPacket, bool& ReceivedEqua
     const MockBigPacket& BigPacketReceived = dynamic_cast<const MockBigPacket&>(ReceivedPacket);
     ReceivedEqualSent = BigPacketReceived == SentPacket;
 
-    assert(ReceivedEqualSent);
+    EXPECT_EQ(BigPacketReceived, SentPacket);
 }
 
 
@@ -182,7 +187,7 @@ void UnitTest_SendFragmented()
 
     MockBigPacket Packet(FragmentCount);
 
-    assert(Connection.Send(Packet));
+    ASSERT_TRUE(Connection.Send(Packet));
     MockBigPacket SentPacket = Packet;
     Packet.Reset();
 
@@ -193,7 +198,7 @@ void UnitTest_SendFragmented()
 }
 
 template <uint8_t FragmentCount>
-void UnitTest_SendImcompleteFragmented()
+void UnitTest_SendIncompleteFragmented()
 {
     uint8_t NumberOfFragments = FragmentCount;
     NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
@@ -203,7 +208,7 @@ void UnitTest_SendImcompleteFragmented()
 
     MockBigPacket Packet(FragmentCount, MockBigPacket::LastPacketHalf);
 
-    assert(Connection.Send(Packet));
+    ASSERT_TRUE(Connection.Send(Packet));
     MockBigPacket SentPacket = Packet;
     Packet.Reset();
 
@@ -213,9 +218,43 @@ void UnitTest_SendImcompleteFragmented()
     NetObjectManager::Get().Unregister<MockBigPacket>();
 }
 
+TEST(Fragments, Send1FragmentedPacket)
+{
+    UnitTest_SendFragmented<1>();
+}
+TEST(Fragments, Send2FragmentedPacket)
+{
+    UnitTest_SendFragmented<2>();
+}
+TEST(Fragments, Send4FragmentedPacket)
+{
+    UnitTest_SendFragmented<4>();
+}
+TEST(Fragments, Send10FragmentedPacket)
+{
+    UnitTest_SendFragmented<10>();
+}
+
+TEST(Fragments, Send1IncompleteFragmentedPacket)
+{
+    UnitTest_SendIncompleteFragmented<1>();
+}
+TEST(Fragments, Send2IncompleteFragmentedPacket)
+{
+    UnitTest_SendIncompleteFragmented<2>();
+}
+TEST(Fragments, Send4IncompleteFragmentedPacket)
+{
+    UnitTest_SendIncompleteFragmented<4>();
+}
+TEST(Fragments, Send10IncompleteFragmentedPacket)
+{
+    UnitTest_SendIncompleteFragmented<10>();
+}
+
 //Client: 127.0.0.1:30000 300001
 //Server: 30000
-DEFINE_UNIT_TEST(Fragments)
+/*DEFINE_UNIT_TEST(Fragments)
 {        
     REGISTER_LOCATION;
 
@@ -233,4 +272,4 @@ DEFINE_UNIT_TEST(Fragments)
     UnitTest_SendImcompleteFragmented<10>();
 
     return true;
-}
+}*/

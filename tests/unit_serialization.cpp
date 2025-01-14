@@ -10,6 +10,8 @@
 #include <hermod/serialization/ReadStream.h>
 #include "Vector2f.h"
 
+#include <gtest/gtest.h>
+
 static const bool DISABLE_TIMEOUT = true;
 
 serialization::WriteStream Writer(MaxMTUSize);
@@ -28,9 +30,9 @@ void UnitTest_SerializePrimitives(T TestValue)
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
     Reader.Serialize(ReadTest);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(OgTest == ReadTest);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(OgTest, ReadTest);
 }
 
 template <>
@@ -50,9 +52,9 @@ void UnitTest_SerializePrimitives<const char*>(const char* TestValue)
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
     Reader.Serialize<char*>(ReadTest, StringLen);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(strcmp(OgTest, ReadTest)==0);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(strcmp(OgTest, ReadTest),0);
 }
 
 template <>
@@ -71,13 +73,20 @@ void UnitTest_SerializePrimitives<std::string>(std::string TestValue)
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
     Reader.Serialize<std::string>(ReadTest, StringLen);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(OgTest == ReadTest);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(OgTest, ReadTest);
 }
 
-void UnitTest_SerializeBuffer(uint8_t* Buffer, std::size_t BufferSize)
+TEST(Serialization, SerializeBuffer)
 {
+    const int BufferSize = 1018;
+    uint8_t* Buffer = new uint8_t[BufferSize];
+    for (int idx = 0; idx < BufferSize; ++idx)
+    {
+        Buffer[idx] = (uint8_t)1 + ((idx) % 254);
+    }
+
     Writer.Reset();
     Reader.Reset();
 
@@ -89,13 +98,20 @@ void UnitTest_SerializeBuffer(uint8_t* Buffer, std::size_t BufferSize)
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
     Reader.Serialize<uint8_t*>(ReadTest, BufferSize);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    memcmp(OgTest, ReadTest, BufferSize);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(memcmp(OgTest, ReadTest, BufferSize), 0);
 }
 
-void UnitTest_SerializeBufferAlignedOnWord(uint8_t* Buffer, std::size_t BufferSize)
+TEST(Serialization, SerializeBufferAlignedOnWord)
 {
+    const int BufferSize = 1018;
+    uint8_t* Buffer = new uint8_t[BufferSize];
+    for (int idx = 0; idx < BufferSize; ++idx)
+    {
+        Buffer[idx] = (uint8_t)1 + ((idx) % 254);
+    }
+
     Writer.Reset();
     Reader.Reset();
 
@@ -116,16 +132,23 @@ void UnitTest_SerializeBufferAlignedOnWord(uint8_t* Buffer, std::size_t BufferSi
     Reader.Serialize<uint8_t>(unalignByteRead2);
     Reader.Serialize<uint8_t*>(ReadTest, BufferSize);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(unalignByte1 == unalignByteRead1);
-    assert(unalignByte2 == unalignByteRead2);
-    memcmp(OgTest, ReadTest, BufferSize);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(unalignByte1, unalignByteRead1);
+    EXPECT_EQ(unalignByte2, unalignByteRead2);
+    EXPECT_EQ(memcmp(OgTest, ReadTest, BufferSize),0);
 }
 
 
-void UnitTest_SerializeBufferNotAligned(uint8_t* Buffer, std::size_t BufferSize)
+TEST(Serialization, SerializeBufferNotAligned)
 {
+    const int BufferSize = 1018;
+    uint8_t* Buffer = new uint8_t[BufferSize];
+    for (int idx = 0; idx < BufferSize; ++idx)
+    {
+        Buffer[idx] = (uint8_t)1 + ((idx) % 254);
+    }
+
     Writer.Reset();
     Reader.Reset();
 
@@ -143,13 +166,13 @@ void UnitTest_SerializeBufferNotAligned(uint8_t* Buffer, std::size_t BufferSize)
     Reader.Serialize<uint8_t>(unalignByteRead1, { 8 });
     Reader.Serialize<uint8_t*>(ReadTest, BufferSize);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(unalignByte1 == unalignByteRead1);
-    memcmp(OgTest, ReadTest, BufferSize);
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(unalignByte1, unalignByteRead1);
+    EXPECT_EQ(memcmp(OgTest, ReadTest, BufferSize), 0);
 }
 
-void UnitTest_SerializeVector2f()
+TEST(Serialization, SerializeVector2f)
 {
     Writer.Reset();
     Reader.Reset();
@@ -162,14 +185,72 @@ void UnitTest_SerializeVector2f()
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
     MyReadVector.Serialize(Reader);
 
-    assert(Writer.GetDataSize() == Reader.GetDataSize());
-    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
-    assert(MyOgVector == MyReadVector);
+    EXPECT_EQ(Writer.GetDataSize(),Reader.GetDataSize()) << "Expecting Writer and Reader buffer to be the same size";
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0) << "Expecting Writer and Reader buffer to have the same content";
+    EXPECT_EQ(MyOgVector, MyReadVector);
+}
+
+TEST(Serialization, SerializeBool)
+{
+    UnitTest_SerializePrimitives(true);
+}
+TEST(Serialization, SerializeUInt8)
+{
+    UnitTest_SerializePrimitives<uint8_t>(8);
+}
+TEST(Serialization, SerializeUInt16)
+{
+    UnitTest_SerializePrimitives<uint16_t>(16);
+}
+TEST(Serialization, SerializeUInt32)
+{
+    UnitTest_SerializePrimitives<uint32_t>(32);
+}
+TEST(Serialization, SerializeUInt64)
+{
+    UnitTest_SerializePrimitives<uint64_t>(64);
+}
+TEST(Serialization, SerializeInt8)
+{
+    UnitTest_SerializePrimitives<int8_t>(-8);
+}
+TEST(Serialization, SerializeInt16)
+{
+    UnitTest_SerializePrimitives<int16_t>(-16);
+}
+TEST(Serialization, SerializeInt32)
+{
+    UnitTest_SerializePrimitives<int32_t>(-32);
+}
+TEST(Serialization, SerializeInt64)
+{
+    UnitTest_SerializePrimitives<int64_t>(-64);
+}
+TEST(Serialization, SerializeFloat)
+{
+    UnitTest_SerializePrimitives<float>(123.456f);
+}
+TEST(Serialization, SerializeDouble)
+{
+    UnitTest_SerializePrimitives<double>(987654.321);
+}
+TEST(Serialization, SerializeStdString)
+{
+    std::string Test("TestString");
+    UnitTest_SerializePrimitives(Test);
+}
+TEST(Serialization, SerializeCString)
+{
+    UnitTest_SerializePrimitives("TestString\0");
+}
+TEST(Serialization, SerializeEnum)
+{
+    UnitTest_SerializePrimitives(EnumTest::B);
 }
 
 //Client: 127.0.0.1:30000 300001
 //Server: 30000
-DEFINE_UNIT_TEST(Serialization)
+/*DEFINE_UNIT_TEST(Serialization)
 {        
     location = std::source_location::current();
 
@@ -200,4 +281,4 @@ DEFINE_UNIT_TEST(Serialization)
     UnitTest_SerializeBufferNotAligned(Buffer, BufferSize);
 
     return true;
-}
+}*/

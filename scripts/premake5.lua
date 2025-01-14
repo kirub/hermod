@@ -10,6 +10,9 @@ workspace "hermod"
 	filter { "platforms:Win64" }
 		system "Windows"
 		architecture "x86_64"
+		
+		
+	os.execute("build_gtest.bat")
 
 project "hermod"
 	kind "SharedLib"
@@ -43,23 +46,28 @@ project "tests"
 	targetdir "../bin/%{cfg.buildcfg}"
 	debugdir "../libs/%{cfg.buildcfg}"
 	objdir ("../build")
-	includedirs { "../include" } 
-	libdirs { "../libs/%{cfg.buildcfg}" }
+	includedirs { "../include",  "../libs/googletest/googletest/include" } 
+	libdirs { "../libs/%{cfg.buildcfg}", "../libs/googletest/build/lib/%{cfg.buildcfg}" }
 
 	files { "../tests/**.h", "../tests/**.cpp" }
+	removefiles {"../tests/main.cpp", "../tests/framework.cpp", "../tests/unit_serialization.h" , "../tests/unit_fragments.h", "../tests/framework.h"}
 
-	links { "hermod" }
+	links { "hermod", "gtest", "gtest_main" }
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
 		symbols "On"	
 		postbuildcommands {
-			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]"
+			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]",
+			"{COPYFILE} ../libs/googletest/build/bin/%{cfg.buildcfg}/gtest.dll %[%{!cfg.targetdir}]",
+			"{COPYFILE} ../libs/googletest/build/bin/%{cfg.buildcfg}/gtest_main.dll %[%{!cfg.targetdir}]"
 		}
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 		optimize "On"
 		postbuildcommands {
-			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]"
+			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]",
+			"{COPYFILE} ../libs/googletest/build/bin/%{cfg.buildcfg}/gtest.dll %[%{!cfg.targetdir}]",
+			"{COPYFILE} ../libs/googletest/build/bin/%{cfg.buildcfg}/gtest_main.dll %[%{!cfg.targetdir}]"
 		}

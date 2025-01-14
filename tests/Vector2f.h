@@ -3,7 +3,7 @@
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/replication/NetProperty.h>
 
-enum Test
+enum EnumTest
 {
     A, B, C,
     Count
