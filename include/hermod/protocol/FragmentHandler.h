@@ -38,5 +38,6 @@ namespace proto
 		bool IsComplete() const;
 
 		void OnFragment(FragmentPtr InFragment);
+		//void OnFragment(uint8_t FragmentCount, uint8_t FragmentId, FragmentPtr InFragment);
 	};
 }

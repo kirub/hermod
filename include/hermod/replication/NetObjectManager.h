@@ -1,16 +1,22 @@
 #pragma once
 
 #include <hermod/replication/NetPropertyInterface.h>
-#include <hermod/serialization/ReadStream.h>
 
 #include <functional>
 #include <map>
 #include <memory>
-#include <hermod/protocol/ConnectionInterface.h>
+
+class IConnection;
+
+namespace serialization
+{
+    class IStream;
+    class ReadStream;
+    class WriteStream;
+}
 
 namespace proto
 {
-    class ReadStream;
     class INetObject;
 }
 
@@ -32,25 +38,45 @@ public:
     template < std::derived_from<proto::INetObject> T>
     void Register(const ObjectConstructor& Contructor = []() { return new T(); })
     {
-        Factory.insert({ T::StaticClassId(), Contructor });
+        Factory.insert({ T::NetObjectId::value, Contructor });
+    }
+    template < std::derived_from<proto::INetObject> T>
+    void Unregister()
+    {
+        Factory.erase(T::NetObjectId::value);
     }
 
 
     template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>
     bool RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener)
     {
-        return ObjectListeners.insert({ NetObject::StaticClassId(), { Property.GetIndex(), Listener} }).second;
+        return ObjectListeners.insert({ NetObject::NetObjectId::value, { Property.GetIndex(), Listener} }).second;
     }
 
     void Unregister(const uint32_t ObjectClassId);
 
     uint32_t NetObjectsCount() const;
 
-    RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
+    HERMOD_API RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
+    template < typename... Args >
+    RetNetObjectType Instantiate(const uint32_t ObjectClassId, Args&&... InArgs) const
+    {
+        ObjectsConstructorContainer::const_iterator itFound = Factory.find(ObjectClassId);
+        if (itFound == Factory.end())
+        {
+            return nullptr;
+        }
 
-    HERMOD_API RetNetObjectType HandlePacket(serialization::ReadStream& Reader);
+        return itFound->second(std::forward<Args>(InArgs)...);
+    }
+
+    //HERMOD_API RetNetObjectType HandlePacket(serialization::ReadStream& Reader);
 
     void ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections);
+    //HERMOD_API bool SerializeObject(proto::INetObject*& NetObject, serialization::IStream& Stream);
+
+    HERMOD_API std::optional<PropertiesListenerContainer> GetPropertiesListeners(proto::INetObject& NetObject) const;
+
 
 private:
 

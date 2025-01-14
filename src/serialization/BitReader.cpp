@@ -1,10 +1,12 @@
 #include <hermod/serialization/BitReader.h>
 #include <hermod/platform/Platform.h>
+#include <utility>
 
 namespace serialization
 {
     BitReader::BitReader(const void* data, int bytes)
         : m_data((const uint32_t*)data)
+        , m_capacityBytes(bytes)
         , m_numBytes(bytes)
 #ifdef DEBUG
         , m_numWords((bytes + 3) / 4)
@@ -18,6 +20,7 @@ namespace serialization
 
     void BitReader::Reset()
     {
+        m_numBytes = m_capacityBytes;
         m_numBits = m_numBytes * 8;
         m_bitsRead = 0;
         m_scratch = 0;
@@ -25,6 +28,11 @@ namespace serialization
         m_wordIndex = 0;
     }
 
+    void BitReader::SetSize(int InNumBytes)
+    {
+        m_numBytes = InNumBytes;
+        m_numBits = m_numBytes * 8;
+    }
 
     bool BitReader::WouldOverflow(int bits) const
     {
@@ -61,13 +69,13 @@ namespace serialization
         return output;
     }
 
-    bool BitReader::ReadAlign()
+    bool BitReader::ReadAlign(int BitsMultiple /*= 8*/)
     {
-        const int remainderBits = m_bitsRead % 8;
+        const int remainderBits = m_bitsRead % BitsMultiple;
         if (remainderBits != 0)
         {
-            uint32_t value = ReadBits(8 - remainderBits);
-            assert(m_bitsRead % 8 == 0);
+            uint32_t value = ReadBits(BitsMultiple - remainderBits);
+            assert(m_bitsRead % BitsMultiple == 0);
             if (value != 0)
                 return false;
         }
@@ -118,9 +126,9 @@ namespace serialization
         return (uint8_t*)m_data;
     }
 
-    int BitReader::GetAlignBits() const
+    int BitReader::GetAlignBits(int BitsMultiple /*= 8*/) const
     {
-        return (8 - m_bitsRead % 8) % 8;
+        return (BitsMultiple - m_bitsRead % BitsMultiple) % BitsMultiple;
     }
 
     int BitReader::GetBitsRead() const
@@ -140,7 +148,7 @@ namespace serialization
 
     int BitReader::GetBytesRemaining() const
     {
-        return GetBitsRemaining() / 8;
+        return (GetBitsRemaining() + 7) / 8;
     }
 
     int BitReader::GetTotalBits() const

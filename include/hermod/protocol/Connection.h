@@ -42,9 +42,7 @@ public:
 private:
 
 	bool Flush();
-	void OnPacketReceived(serialization::ReadStream Stream);
-
-	static const int MaxStreamSize = 1024 * 64;
+	void OnPacketReceived(serialization::ReadStream& Stream);
 
 	const TimeMs ConnectionTimeoutSec;
 	TimeMs LastPacketReceiveTimeout;

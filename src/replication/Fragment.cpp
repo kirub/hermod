@@ -4,7 +4,7 @@
 namespace proto
 {
 	Fragment::Fragment()
-		: Fragment(0u, 0u, nullptr, MaxPacketSize)
+		: Fragment(0u, 0u, nullptr, MaxFragmentSize)
 	{
 	}
 
@@ -26,7 +26,7 @@ namespace proto
 		delete[] Data;
 	}
 
-	bool Fragment::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper /*= std::optional<NetObjectManager::PropertiesListenerContainer>()*/)
+	bool Fragment::SerializeImpl(serialization::IStream& Stream)
 	{
 		return Stream.Serialize(Count) &&
 			Stream.Serialize(Id, { Count }) &&

@@ -5,25 +5,34 @@
 class MockBigPacket
     : public proto::INetObject
 {
+    CLASS_ID(MockBigPacket)
 public:
 
-    MockBigPacket(int NumberOfFragments)
+    enum Filling
+    {
+        None,
+        Filled,
+        LastPacketHalf
+    };
+
+    MockBigPacket(int NumberOfFragments, Filling FillWithData = Filled)
         : NumberOfFrags(NumberOfFragments)
         , bufferSize(0)
         , buffer( nullptr )
     {
         Init(NumberOfFragments);
-        FillWithData();
-        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments); });
+        if (FillWithData)
+        {
+            Fill(FillWithData);
+        }
     }
     MockBigPacket(const MockBigPacket& ToCopy)
         : NumberOfFrags(ToCopy.NumberOfFrags)
         , bufferSize(ToCopy.bufferSize)
-        , buffer(new uint8_t[bufferSize])
+        , buffer(nullptr)
     {
         Init(NumberOfFrags);
         memcpy(buffer, ToCopy.buffer, bufferSize);
-        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments = ToCopy.NumberOfFrags]() { return new MockBigPacket(NumberOfFragments); });
     }
 
     virtual ~MockBigPacket()
@@ -33,8 +42,9 @@ public:
 
     void Init(int NumberOfFragments)
     {
+        assert(NumberOfFragments > 0);
         NumberOfFrags = NumberOfFragments;
-        bufferSize = MaxPacketSize * NumberOfFragments;
+        bufferSize = (MaxFragmentSize - sizeof(uint32_t) - 2) + (NumberOfFragments - 1) * MaxFragmentSize; // because we want exactly 2 fragments and serialize packets have a packet id (uint32_t) overhead + raw buffer has a 2 bytes overhead
         if (bufferSize > 0)
         {
             if (buffer)
@@ -42,13 +52,15 @@ public:
                 delete[] buffer;
             }
             buffer = new uint8_t[bufferSize];
+            memset(buffer, 0, sizeof(uint8_t) * bufferSize);
         }
     }
 
-    void FillWithData()
+    void Fill(Filling FillWithData)
     {
         static std::string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
+        unsigned int StopAt = FillWithData == Filled ? bufferSize : bufferSize - (MaxFragmentSize / 2);
         for (unsigned int i = 0; i < bufferSize; i++)
             buffer[i] = charset[rand() % charset.length()];
     }
@@ -63,9 +75,9 @@ public:
         return memcmp(buffer, Rhs.buffer, std::min(bufferSize, Rhs.bufferSize)) == 0;
     }
 
-    virtual bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>())
+    virtual bool SerializeImpl(serialization::IStream& Stream) override
     {
-        return Stream.Serialize(buffer, { bufferSize });        
+        return Stream.Serialize<uint8_t*>(buffer, { bufferSize });
     }
 
     using OnReceivedCallbackType = std::function<void(const MockBigPacket&)>;
@@ -75,7 +87,10 @@ public:
     }
     virtual void OnReceived() 
     {
-        Callback(*this);
+        if (Callback)
+        {
+            Callback(*this);
+        }
     }
 private:
 
@@ -86,53 +101,81 @@ private:
     OnReceivedCallbackType Callback;
 };
 
+static const int bufferSize = MaxMTUSize;
+struct MockUDPPacket
+{
+    int PacketSize;
+    uint8_t buffer[bufferSize];
+
+    MockUDPPacket(uint8_t* InBuffer, int InSize)
+        : PacketSize(InSize)
+    {
+        assert(bufferSize >= InSize);
+        memcpy(buffer, InBuffer, std::min(InSize, bufferSize));
+    }
+
+    int Read(uint8_t* data, int MaxSize)
+    {
+        assert(MaxSize >- PacketSize);
+        int ReceiveBytesCount = std::min(PacketSize, MaxSize);
+        memcpy(data, buffer, ReceiveBytesCount);
+        return ReceiveBytesCount;
+    }
+};
+
 class MockSocket
     : public ISocket
 {
     Address SendAddr;
-    int SendBufferSize;
-    static const int bufferSize = 1450;
-    uint8_t buffer[bufferSize];
+    std::queue<MockUDPPacket> Packets;
 
 public:
 
     MockSocket(unsigned short port)
     {
-        memset(buffer, 0, sizeof(uint8_t) * bufferSize);
     }
 
-    void Reset()
+    std::size_t DataAvailable()
     {
-        memset(buffer, 0, sizeof(uint8_t) * bufferSize);
+        return Packets.size();
     }
 
     virtual bool Send(const unsigned char* data, int len, const Address& dest) override
     {
-        assert(bufferSize < len);
-        memcpy(buffer, data, len);
-        SendBufferSize = len;
+        Packets.push(MockUDPPacket( (uint8_t*)data, len ));
         SendAddr = dest;
         return true;
     }
     virtual int Receive(Address& sender, unsigned char* data, int len) override
     { 
-        if (len > 0)
+        int ReceiveBytesCount = 0;
+        if (len > 0 && DataAvailable() > 0)
         {
-            assert(len < SendBufferSize);
             sender = SendAddr;
-            memcpy(data, buffer, SendBufferSize);
-
-            Reset();
+            MockUDPPacket& Packet = Packets.front();
+            ReceiveBytesCount = Packet.Read(data, len);
+            Packets.pop();
         }
-        return SendBufferSize;
+        return ReceiveBytesCount;
     }
 };
 
 using TestableConnection = Connection<MockSocket>;
 
+void OnReceiveObject(const proto::INetObject& ReceivedPacket, bool& ReceivedEqualSent, const MockBigPacket& SentPacket)
+{
+    const MockBigPacket& BigPacketReceived = dynamic_cast<const MockBigPacket&>(ReceivedPacket);
+    ReceivedEqualSent = BigPacketReceived == SentPacket;
+
+    assert(ReceivedEqualSent);
+}
+
+
 template <uint8_t FragmentCount>
 void UnitTest_SendFragmented()
 {
+    uint8_t NumberOfFragments = FragmentCount;
+    NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
     srand((unsigned int)time(NULL));
     bool ReceivedEqualSent = false;
     TestableConnection Connection(3000, 10000);
@@ -143,16 +186,31 @@ void UnitTest_SendFragmented()
     MockBigPacket SentPacket = Packet;
     Packet.Reset();
 
-    Packet.SetOnReceivedCallback(
-        [&ReceivedEqualSent, SentPacket](const MockBigPacket& ReceivedPacket)
-        {
-            ReceivedEqualSent = ReceivedPacket == SentPacket;
-        }
-    );
+    Connection.OnReceiveObject(std::bind(OnReceiveObject, std::placeholders::_1, ReceivedEqualSent, SentPacket));
 
     Connection.Update(33.3f);
+    NetObjectManager::Get().Unregister<MockBigPacket>();
+}
 
-    assert(ReceivedEqualSent);
+template <uint8_t FragmentCount>
+void UnitTest_SendImcompleteFragmented()
+{
+    uint8_t NumberOfFragments = FragmentCount;
+    NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
+    srand((unsigned int)time(NULL));
+    bool ReceivedEqualSent = false;
+    TestableConnection Connection(3000, 10000);
+
+    MockBigPacket Packet(FragmentCount, MockBigPacket::LastPacketHalf);
+
+    assert(Connection.Send(Packet));
+    MockBigPacket SentPacket = Packet;
+    Packet.Reset();
+
+    Connection.OnReceiveObject(std::bind(OnReceiveObject, std::placeholders::_1, ReceivedEqualSent, SentPacket));
+
+    Connection.Update(33.3f);
+    NetObjectManager::Get().Unregister<MockBigPacket>();
 }
 
 //Client: 127.0.0.1:30000 300001
@@ -161,10 +219,18 @@ DEFINE_UNIT_TEST(Fragments)
 {        
     REGISTER_LOCATION;
 
+    proto::Fragment* test = new proto::Fragment();
+    delete test;
+
     UnitTest_SendFragmented<1>();
     UnitTest_SendFragmented<2>();
     UnitTest_SendFragmented<4>();
     UnitTest_SendFragmented<10>();
+
+    UnitTest_SendImcompleteFragmented<1>();
+    UnitTest_SendImcompleteFragmented<2>();
+    UnitTest_SendImcompleteFragmented<4>();
+    UnitTest_SendImcompleteFragmented<10>();
 
     return true;
 }

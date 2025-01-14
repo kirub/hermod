@@ -14,13 +14,15 @@ namespace serialization
         BitWriter(void* data, int bytes);
 
         void WriteBits(uint32_t value, int bits);
-        void WriteAlign();
+        void WriteAlign(int BitsMultiple = 8);
         void WriteBytes(const uint8_t* data, int bytes);
 
         void Reset();
         void FlushBits();
 
-        int GetAlignBits() const;
+        bool WouldOverflow(int bits) const;
+
+        int GetAlignBits(int BitsMultiple = 8) const;
         int GetBitsWritten() const;
         int GetBitsAvailable() const;
         const uint8_t* GetData() const;

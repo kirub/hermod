@@ -9,7 +9,7 @@ namespace serialization
 	class WriteStream;
 }
 
-class Protocol
+class HERMOD_API Protocol
 	: public IProtocol
 {
 public:
@@ -39,6 +39,8 @@ private:
 	static const UINT8 HistorySize = 33;
 	static const UINT8 InvalidSequenceIdx = 255;
 	static const uint16_t InvalidSequenceId;
+
+	void OnPacketSent(const uint16_t PacketSentSequenceId);
 
 	bool WriteProtocolId(unsigned char*& Data, int& Len) const;
 	bool WriteSequenceId(unsigned char*& Data, int& Len);

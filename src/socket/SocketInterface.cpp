@@ -10,7 +10,9 @@ bool ISocket::Send(serialization::IStream& InStream, const Address& dest)
 
 int ISocket::Receive(Address& sender, serialization::IStream& Stream)
 {
-	return Receive(sender, (unsigned char*)Stream.GetData(), Stream.GetBytesRemaining());
+	int BytesRead = Receive(sender, (unsigned char*)Stream.GetData(), Stream.GetBytesRemaining());
+	Stream.AdjustSize(BytesRead);
+	return BytesRead;
 }
 
 bool ISocket::Initialize()

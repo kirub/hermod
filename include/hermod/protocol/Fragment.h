@@ -13,7 +13,8 @@ namespace proto
 	class HERMOD_API Fragment
 		: public INetObject
 	{
-		CLASS_ID(Fragment)
+		CLASS_ID(Fragment)		
+private:
 	public:
 
 		const uint8_t Invalid = 0xFF;
@@ -27,6 +28,6 @@ namespace proto
 
 		virtual ~Fragment();
 
-		virtual bool Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper = std::optional<NetObjectManager::PropertiesListenerContainer>()) override;
+		virtual bool SerializeImpl(serialization::IStream& Stream) override;
 	};
 }

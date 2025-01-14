@@ -35,57 +35,62 @@ namespace proto
 		if (!HasError && Dirty)
 		{
 			HasError = !SerializeImpl(Stream);
-		}
+			SetDirty(false);
+		}		
 
-		return HasError;
+		return !HasError;
 	}
 
 	INetObject::INetObject()
-		: INetObject(Object)
 	{
 	}
 	INetObject::INetObject(ENetObjectType InNetObjectType)
-		: NetObjectType(*this, InNetObjectType)
 	{
+	}
+
+	bool INetObject::SerializeImpl(serialization::IStream& Stream)
+	{
+		return true;
 	}
 
 	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
 	{
-		bool HasError = false;
-		uint32_t NetObjectClassId = GetClassId();
-		Stream.Serialize(NetObjectClassId);
+		bool HasError = !SerializeProperties(Stream, Mapper);
 
-		for (INetProperty* Property : Properties)
-		{
-			if (Property && Property->IsDirty())
-			{
-				if (Property->Serialize(Stream))
-				{
-					Property->SetDirty(false);
-
-					if (Mapper)
-					{
-						NetObjectManager::PropertiesListenerContainer::const_iterator ListenerFound = Mapper->find(static_cast<uint8_t>(Property->GetIndex()));
-						if (ListenerFound != Mapper->end())
-						{
-							ListenerFound->second(*Property);
-						}
-					}
-				}
-				else
-				{
-					HasError = true;
-					break;
-				}
-			}
-		}
-
-		if (Stream.IsReading())
+		if (!HasError && Stream.IsReading())
 		{
 			OnReceived();
 		}
 
-		return HasError;
+		return !HasError;
+	}
+
+	bool INetObject::SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
+	{
+		bool HasError = false;
+		for (INetProperty* Property : Properties)
+		{
+			if (Property)
+			{
+				HasError = !Property->Serialize(Stream);
+				if (HasError)
+				{
+					break;
+				}
+
+				if (Mapper)
+				{
+					NetObjectManager::PropertiesListenerContainer::const_iterator ListenerFound = Mapper->find(static_cast<uint8_t>(Property->GetIndex()));
+					if (ListenerFound != Mapper->end())
+					{
+						ListenerFound->second(*Property);
+					}
+				}
+			}
+		}
+		HasError &= !SerializeImpl(Stream);
+
+		return !HasError;
 	}
 
 	void INetObject::AddProperty(INetProperty& Property)

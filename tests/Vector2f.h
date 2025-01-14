@@ -13,11 +13,18 @@ class Vector2f
     : public proto::INetObject
 {
 
+    CLASS_ID(Vector2f)
+
 public:
 
     Vector2f();
 
     Vector2f(float InX, float InY);
+
+    bool operator==(const Vector2f& Rhs) const
+    {
+        return X == Rhs.X && Y == Rhs.Y;
+    }
 
 private:
 

@@ -12,6 +12,7 @@ namespace serialization
     
     ReadStream::ReadStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter)
         : IStream(Reading)
+        , Data(InBuffer)
         , Reader(InBuffer, InSizeInBytes)
         , Error(PROTO_ERROR_NONE)
         , BitsRead(0)
@@ -30,7 +31,7 @@ namespace serialization
     {
         if (DeleterFunc)
         {
-            DeleterFunc((unsigned char*)Reader.GetData());
+            DeleterFunc(Data);
         }
     }
 
@@ -39,6 +40,11 @@ namespace serialization
         Reader.Reset();
         Error = PROTO_ERROR_NONE;
         BitsRead = 0;
+    }
+
+    void ReadStream::AdjustSize(int InNumBytes) 
+    {
+        Reader.SetSize(InNumBytes);
     }
 
     bool ReadStream::SerializeInteger(int32_t& OutValue, int32_t InMin, int32_t InMax)
@@ -85,15 +91,15 @@ namespace serialization
         return true;
     }
 
-    bool ReadStream::SerializeAlign()
+    bool ReadStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
-        const int AlignBits = Reader.GetAlignBits();
+        const int AlignBits = Reader.GetAlignBits(AlignToBits);
         if (Reader.WouldOverflow(AlignBits))
         {
             Error = PROTO_ERROR_STREAM_OVERFLOW;
             return false;
         }
-        if (!Reader.ReadAlign())
+        if (!Reader.ReadAlign(AlignToBits))
             return false;
         BitsRead += AlignBits;
         return true;
@@ -122,6 +128,11 @@ namespace serialization
 #endif // #if PROTO_SERIALIZE_CHECKS
     }
 
+    bool ReadStream::WouldOverflow(int bytes) const
+    {
+        return Reader.WouldOverflow(bytes * 8);
+    }
+
     const uint8_t* ReadStream::GetData()
     {
         return Reader.GetData();
@@ -129,7 +140,7 @@ namespace serialization
 
     int ReadStream::GetDataSize() const
     {
-        return GetBytesProcessed();
+        return GetBytesRead();
     }
 
     int ReadStream::GetBitsProcessed() const
@@ -143,7 +154,7 @@ namespace serialization
     }
     int ReadStream::GetBytesRemaining() const
     {
-        return Reader.GetBitsRemaining() / 8;
+        return Reader.GetBytesRemaining();
     }
 
     int ReadStream::GetBytesProcessed() const

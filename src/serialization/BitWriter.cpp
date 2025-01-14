@@ -1,4 +1,5 @@
 #include <hermod/serialization/BitWriter.h>
+#include <utility>
 
 namespace serialization
 {
@@ -39,14 +40,14 @@ namespace serialization
         }
     }
 
-    void BitWriter::WriteAlign()
+    void BitWriter::WriteAlign(int BitsMultiple /*= 8*/)
     {
-        const int remainderBits = m_bitsWritten % 8;
+        const int remainderBits = m_scratchBits % BitsMultiple;
         if (remainderBits != 0)
         {
             uint32_t zero = 0;
-            WriteBits(zero, 8 - remainderBits);
-            assert((m_bitsWritten % 8) == 0);
+            WriteBits(zero, BitsMultiple - remainderBits);
+            assert((m_bitsWritten % BitsMultiple) == 0);
         }
     }
 
@@ -63,8 +64,6 @@ namespace serialization
             WriteBits(data[i], 8);
         if (headBytes == bytes)
             return;
-
-        FlushBits();
 
         assert(GetAlignBits() == 0);
 
@@ -98,15 +97,21 @@ namespace serialization
             assert(m_wordIndex < m_numWords);
             m_data[m_wordIndex] = htonl(uint32_t(m_scratch & 0xFFFFFFFF));
             m_scratch >>= 32;
-            m_bitsWritten += m_scratchBits;
-            m_scratchBits -= 32;
+            m_bitsWritten += 32;
+            m_scratchBits = std::max(m_scratchBits - 32, 0);
             m_wordIndex++;
         }
     }
 
-    int BitWriter::GetAlignBits() const
+
+    bool BitWriter::WouldOverflow(int bits) const
     {
-        return (8 - (m_bitsWritten % 8)) % 8;
+        return m_bitsWritten + bits > m_numBits;
+    }
+
+    int BitWriter::GetAlignBits(int BitsMultiple /*= 8*/) const
+    {
+        return (BitsMultiple - (m_scratchBits % BitsMultiple)) % BitsMultiple;
     }
 
     int BitWriter::GetBitsWritten() const

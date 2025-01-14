@@ -22,10 +22,6 @@ namespace serialization
 		: public std::disjunction<
 		std::is_same<const char*, std::decay_t<T>>,
 		std::is_same<char*, std::decay_t<T>>,
-		std::is_same<const unsigned char*, std::decay_t<T>>,
-		std::is_same<uint8_t*, std::decay_t<T>>,
-		std::is_same<const uint8_t*, std::decay_t<T>>,
-		std::is_same<unsigned char*, std::decay_t<T>>,
 		std::is_same<std::string, std::decay_t<T>>
 		> {
 	};
@@ -34,7 +30,9 @@ namespace serialization
 	struct is_raw_buffer
 		: public std::disjunction<
 		std::is_same<const unsigned char*, std::decay_t<T>>,
-		std::is_same<unsigned char*, std::decay_t<T>>
+		std::is_same<unsigned char*, std::decay_t<T>>,
+		std::is_same<uint8_t*, std::decay_t<T>>,
+		std::is_same<const uint8_t*, std::decay_t<T>>
 		> {
 	};
 
@@ -44,13 +42,17 @@ namespace serialization
 	template <typename ArrayType>			concept Array = std::is_bounded_array_v<ArrayType>;
 	template <typename EnumType>			concept Enumeration = std::is_enum_v<EnumType>;
 	template <typename PointerType>			concept Pointer = std::is_pointer_v<PointerType>;
-	template <typename StringType>			concept String = is_string<StringType>::value;
+	template <typename BufferType>			concept Buffer = is_raw_buffer<BufferType>::value && !is_string<BufferType>::value && !Enumeration<BufferType>;
+	template <typename StringType>			concept String = is_string<StringType>::value && !Buffer< StringType>;
 	template <typename StringBufferType>	concept StringBuffer = String<StringBufferType> && !std::is_same_v<StringBufferType, std::string>;
-	template <typename BufferType>			concept Buffer = is_raw_buffer<BufferType>::value && !String<BufferType> && !Enumeration<BufferType>;
 	template <typename BoolType>			concept Boolean = std::_Is_character_or_byte_or_bool<BoolType>::value && !std::integral<BoolType>;
 
 	template < typename PropertyType >
-		requires std::unsigned_integral<PropertyType> || std::signed_integral<PropertyType> || Array<PropertyType> || Enumeration<PropertyType> || std::floating_point<PropertyType> || Pointer<PropertyType> || String<PropertyType> || Boolean<PropertyType>
+		requires std::unsigned_integral<PropertyType> || std::signed_integral<PropertyType> 
+	|| std::floating_point<PropertyType>
+	|| Array<PropertyType> || Pointer<PropertyType> 
+	|| String<PropertyType> || Buffer<PropertyType>
+	|| Boolean<PropertyType> || Enumeration<PropertyType>
 	struct NetPropertySettings
 	{
 	};
@@ -146,6 +148,8 @@ namespace serialization
 		{
 		}
 	};
+
+
 	template <String T>
 	struct NetPropertySettings<T>
 	{
@@ -160,11 +164,11 @@ namespace serialization
 		{
 		}
 		NetPropertySettings(const char* InString)
-			: Length(std::char_traits<char>::length(InString))
+			: Length(std::char_traits<char>::length(InString)+1)
 		{
 		}
 		NetPropertySettings(const std::string& InString)
-			: Length(InString.length())
+			: Length(InString.length()+1)
 		{
 		}
 	};

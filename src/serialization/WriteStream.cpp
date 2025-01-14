@@ -6,23 +6,28 @@
 namespace serialization
 {
     WriteStream::WriteStream(int InSizeInBytes)
-        : WriteStream( new unsigned char[InSizeInBytes], InSizeInBytes)
+        : WriteStream(new unsigned char[InSizeInBytes], InSizeInBytes, [](unsigned char* Ptr) { delete[] Ptr; })
     {
-        OwnsBuffer = true;
     }
     WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes)
+        : WriteStream(InBuffer, InSizeInBytes, nullptr)
+    {
+    }
+
+    WriteStream::WriteStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter)
         : IStream(Writing)
+        , Data(InBuffer)
         , Error(PROTO_ERROR_NONE)
         , Writer(InBuffer, InSizeInBytes)
-        , OwnsBuffer(false)
+        , DeleterFunc(InDeleter)
     {
     }
 
     WriteStream::~WriteStream()
     {
-        if (OwnsBuffer)
+        if (DeleterFunc)
         {
-            delete[] Writer.GetData();
+            delete[] Data;
         }
     }
 
@@ -55,15 +60,14 @@ namespace serialization
     {
         assert(InData);
         assert(InBytesCount >= 0);
-        if (!SerializeAlign())
-            return false;
+        Writer.WriteAlign(8);
         Writer.WriteBytes(InData, InBytesCount);
         return true;
     }
 
-    bool WriteStream::SerializeAlign()
+    bool WriteStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
-        Writer.WriteAlign();
+        Writer.WriteAlign(AlignToBits);
         return true;
     }
 
@@ -85,6 +89,16 @@ namespace serialization
     void WriteStream::Flush()
     {
         Writer.FlushBits();
+    }
+
+    bool WriteStream::WouldOverflow(int bytes) const
+    {
+        return Writer.WouldOverflow(bytes * 8);
+    }
+
+    void WriteStream::EndWrite()
+    {
+        Flush();
     }
 
     const uint8_t* WriteStream::GetData()
