@@ -94,6 +94,61 @@ void UnitTest_SerializeBuffer(uint8_t* Buffer, std::size_t BufferSize)
     memcmp(OgTest, ReadTest, BufferSize);
 }
 
+void UnitTest_SerializeBufferAlignedOnWord(uint8_t* Buffer, std::size_t BufferSize)
+{
+    Writer.Reset();
+    Reader.Reset();
+
+    uint8_t* OgTest = Buffer;
+    uint8_t* ReadTest = new uint8_t[BufferSize];
+    memset(ReadTest, 0, sizeof(uint8_t) * BufferSize);
+
+    uint8_t unalignByte1 = 255;
+    uint8_t unalignByte2 = 128;
+    Writer.Serialize<uint8_t>(unalignByte1);
+    Writer.Serialize<uint8_t>(unalignByte2);
+
+    Writer.Serialize<uint8_t*>(OgTest, BufferSize);
+    memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
+    uint8_t unalignByteRead1 = 0;
+    uint8_t unalignByteRead2 = 0;
+    Reader.Serialize<uint8_t>(unalignByteRead1);
+    Reader.Serialize<uint8_t>(unalignByteRead2);
+    Reader.Serialize<uint8_t*>(ReadTest, BufferSize);
+
+    assert(Writer.GetDataSize() == Reader.GetDataSize());
+    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
+    assert(unalignByte1 == unalignByteRead1);
+    assert(unalignByte2 == unalignByteRead2);
+    memcmp(OgTest, ReadTest, BufferSize);
+}
+
+
+void UnitTest_SerializeBufferNotAligned(uint8_t* Buffer, std::size_t BufferSize)
+{
+    Writer.Reset();
+    Reader.Reset();
+
+    uint8_t* OgTest = Buffer;
+    uint8_t* ReadTest = new uint8_t[BufferSize];
+    memset(ReadTest, 0, sizeof(uint8_t) * BufferSize);
+
+    uint8_t unalignByte1 = 4;
+    Writer.Serialize<uint8_t>(unalignByte1, { 8 });
+
+    Writer.Serialize<uint8_t*>(OgTest, BufferSize);
+    memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
+    uint8_t unalignByteRead1 = 0;
+    uint8_t unalignByteRead2 = 0;
+    Reader.Serialize<uint8_t>(unalignByteRead1, { 8 });
+    Reader.Serialize<uint8_t*>(ReadTest, BufferSize);
+
+    assert(Writer.GetDataSize() == Reader.GetDataSize());
+    assert(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()) == 0);
+    assert(unalignByte1 == unalignByteRead1);
+    memcmp(OgTest, ReadTest, BufferSize);
+}
+
 void UnitTest_SerializeVector2f()
 {
     Writer.Reset();
@@ -134,13 +189,15 @@ DEFINE_UNIT_TEST(Serialization)
     UnitTest_SerializePrimitives(Test);
     UnitTest_SerializePrimitives(Test::B);
     UnitTest_SerializeVector2f();
-    const int BufferSize = 1017;
+    const int BufferSize = 1018;
     uint8_t* Buffer = new uint8_t[BufferSize];
     for (int idx = 0; idx < BufferSize; ++idx)
     {
         Buffer[idx] = (uint8_t) 1 + (( idx) % 254);
     }
     UnitTest_SerializeBuffer(Buffer, BufferSize);
+    UnitTest_SerializeBufferAlignedOnWord(Buffer, BufferSize);
+    UnitTest_SerializeBufferNotAligned(Buffer, BufferSize);
 
     return true;
 }

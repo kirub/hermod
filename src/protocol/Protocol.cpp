@@ -42,7 +42,7 @@ bool Protocol::WriteHeader(unsigned char* Data, int Len)
 
 bool Protocol::Serialize(serialization::IStream& InStream)
 {
-	uint16_t ProtocolId = 0;
+	uint32_t ProtocolId = 0;
 	if (InStream.IsWriting())
 	{
 		ProtocolId = Id;
@@ -176,7 +176,9 @@ void Protocol::OnPacketAcked(const OnPacketAckedCallbackType& Callback)
 
 void Protocol::OnPacketSent(serialization::WriteStream& InStream)
 {
-	OnPacketSent(InStream.GetData(), InStream.GetDataSize());
+	uint32_t* BufferAtSequenceIdOffset=((uint32_t*)InStream.GetData()) + 1;
+	uint16_t PacketSentSequenceId = (uint16_t)(ntohl(*BufferAtSequenceIdOffset) & 0xFFFF);
+	OnPacketSent(PacketSentSequenceId);
 }
 
 void Protocol::OnPacketSent(const unsigned char* Buffer, int Len)
@@ -187,6 +189,10 @@ void Protocol::OnPacketSent(const unsigned char* Buffer, int Len)
 	{
 		CachePacket(PacketSentSequenceId, Local);
 	}
+}
+void Protocol::OnPacketSent(const uint16_t PacketSentSequenceId)
+{
+	CachePacket(PacketSentSequenceId, Local);
 }
 
 bool Protocol::ReadProtocolId(UINT32& ProtocolId, const unsigned char*& Data, int& Len) const

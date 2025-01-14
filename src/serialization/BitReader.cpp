@@ -1,5 +1,6 @@
 #include <hermod/serialization/BitReader.h>
 #include <hermod/platform/Platform.h>
+#include <utility>
 
 namespace serialization
 {
@@ -147,7 +148,7 @@ namespace serialization
 
     int BitReader::GetBytesRemaining() const
     {
-        return GetBitsRemaining() / 8;
+        return (GetBitsRemaining() + 7) / 8;
     }
 
     int BitReader::GetTotalBits() const

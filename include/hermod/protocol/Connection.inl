@@ -48,6 +48,8 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
     }
 
     serialization::WriteStream BunchWriter(MaxStreamSize);
+    uint32_t NetObjectClassId = Packet.GetClassId();
+    bool HasError = !BunchWriter.Serialize(NetObjectClassId);
     Packet.SerializeProperties(BunchWriter);
     BunchWriter.EndWrite();
 
@@ -59,27 +61,10 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
         {
             if (Fragment)
             {
-                uint32_t NetObjectClassId = Fragment->GetClassId();
-                bool HasError = !Writer.Serialize(NetObjectClassId);
-
-                uint8_t FragmentCount = 0;
-                HasError &= Writer.Serialize(Fragment->Count);
-
-                uint8_t FragmentId = 0;
-                HasError &= Writer.Serialize(Fragment->Id, { Fragment->Count });
-
-                Writer.Align(32);
-
-                HasError &= Fragment->Serialize(Writer);
-
-                Writer.EndWrite();
-
-                if (HasError || !Socket->Send(Writer, RemoteEndpoint))
+                if (!Send(*Fragment))
                 {
                     return false;
                 }
-
-                MyProtocol->OnPacketSent(Writer);
             }
         }
     }
@@ -91,8 +76,6 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
 
         uint32_t NetObjectClassId = Packet.GetClassId();
         bool HasError = !Writer.Serialize(NetObjectClassId);
-
-        HasError &= Writer.Align(32);
 
         HasError &= Packet.Serialize(Writer);
 
@@ -118,36 +101,27 @@ void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStrea
     uint32_t NetObjectClassId = 0;
     HasError = !InStream.Serialize(NetObjectClassId);
 
-    uint8_t FragmentCount = 0;
-    uint8_t FragmentId = 0;
-    const bool IsFragment = type::is_a<proto::Fragment>(NetObjectClassId);
-    if (IsFragment)
-    {
-        HasError &= InStream.Serialize(FragmentCount);
-        HasError &= InStream.Serialize(FragmentId, { FragmentCount });
-    }
-
-    InStream.Align(32);
-    // End Header
-
     if (NetObject = NetObjectManager::Get().Instantiate(NetObjectClassId))
     {
-        if (NetObject->Serialize(InStream, NetObjectManager::Get().GetPropertiesListeners(*NetObject)))
+        assert(NetObject->Serialize(InStream, NetObjectManager::Get().GetPropertiesListeners(*NetObject)));
+
+        if (type::is_a<proto::Fragment>(NetObjectClassId))
         {
-            if (IsFragment)
+            Fragments.OnFragment(dynamic_cast<proto::Fragment*>(NetObject));
+            if (Fragments.IsComplete())
             {
-                Fragments.OnFragment(FragmentCount, FragmentId, dynamic_cast<proto::Fragment*>(NetObject));
-                if (Fragments.IsComplete())
-                {
-                    serialization::ReadStream BunchStream = Fragments.Gather();
-                    OnPacketReceived(BunchStream);
-                    Fragments.Reset();
-                }
+                serialization::ReadStream BunchStream = Fragments.Gather();
+                OnPacketReceived(BunchStream);
+                Fragments.Reset();
             }
-            else if (ReceiveObjectCallback)
-            {
-                ReceiveObjectCallback(*NetObject);
-            }
+        }
+        else if (ReceiveObjectCallback)
+        {
+            ReceiveObjectCallback(*NetObject);
+        }
+        else
+        {
+            printf("Unhandle packet %u", NetObjectClassId);
         }
     }
     else
@@ -160,7 +134,6 @@ void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStrea
     }
 
 }
-
 
 template < TSocket SocketType>
 bool Connection<SocketType>::Send(unsigned char* Data, std::size_t Len)
@@ -247,27 +220,30 @@ IConnection::Error Connection<SocketType>::Update(TimeMs TimeDelta)
             RemoteEndpoint = Sender;
         }
 
+        if (Sender != RemoteEndpoint)
+        {
+            printf(__FUNCTION__ ": Invalid remote address. Discard!\n");
+            return InvalidRemoteAddress;
+        }
+
         if (bytes_read > 0)
         {
-            if (Sender != RemoteEndpoint)
+            // Packet header min size is the size of the packet type   
+            while (Reader.GetBytesRemaining() >= sizeof(uint32_t))
             {
-                printf(__FUNCTION__ ": Invalid remote address. Discard!\n");
-                return InvalidRemoteAddress;
-            }
+                if (!MyProtocol->Serialize(Reader))
+                {
+                    printf(__FUNCTION__ ": Invalid header. Discard!\n");
+                    return InvalidHeader;
+                }
 
-            if (!MyProtocol->Serialize(Reader))
-            {
-                printf(__FUNCTION__ ": Invalid header. Discard!\n");
-                return InvalidHeader;
-            }
-
-            LastPacketReceiveTimeout = ConnectionTimeoutSec;
-
-            while (Reader.GetBytesRemaining() > 0)
-            {
+                LastPacketReceiveTimeout = ConnectionTimeoutSec;
+         
                 OnPacketReceived(Reader);
-            }
 
+                assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream
+            }
+            Reader.Reset();
         }
     }
 

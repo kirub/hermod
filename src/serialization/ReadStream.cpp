@@ -154,7 +154,7 @@ namespace serialization
     }
     int ReadStream::GetBytesRemaining() const
     {
-        return Reader.GetBitsRemaining() / 8;
+        return Reader.GetBytesRemaining();
     }
 
     int ReadStream::GetBytesProcessed() const

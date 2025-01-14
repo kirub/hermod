@@ -40,6 +40,11 @@ public:
     {
         Factory.insert({ T::NetObjectId::value, Contructor });
     }
+    template < std::derived_from<proto::INetObject> T>
+    void Unregister()
+    {
+        Factory.erase(T::NetObjectId::value);
+    }
 
 
     template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>

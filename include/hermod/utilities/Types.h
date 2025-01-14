@@ -49,15 +49,7 @@ namespace type
 		return T1::NetObjectId::value == NetObjectId;
 	}
 }
-/*#define INTERNAL_NETCLASS_ID(ClassName)				\
-public:												\
-	template < typename T>							\
-	static uint32_t StaticClassId()					\
-	{												\
-		return TYPEID(ClassName);					\
-	}												\
-	virtual uint32_t GetClassId() const	= 0;		\
-private:*/
+
 #define INTERNAL_NETCLASS_ID(ClassName)				\
 public:												\
 	virtual uint32_t GetClassId() const	= 0;		\
