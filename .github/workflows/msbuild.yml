@@ -8,7 +8,9 @@ name: Build
 on:
   workflow_call:
     outputs:
-       build_runner: ${{ jobs.build.RUNNER.name }}
+       build_runner: 
+         description: "Runner on which repo has been built"
+         value: ${{ jobs.build.RUNNER.name }}
   
 env:
   # Path to the solution file relative to the root of the project.
