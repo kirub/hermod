@@ -24,6 +24,8 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+     RUNNER: ${{ runner.name }}
 
     steps:
     - uses: actions/checkout@v4
