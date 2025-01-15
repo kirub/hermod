@@ -1,13 +1,13 @@
 workspace "hermod"
 	configurations { "Debug", "Release" }
-	platforms { "Win32", "Win64" }
+	platforms { "Win32", "x64" }
 	location "../build"
 	
 	filter { "platforms:Win32" }
 		system "Windows"
 		architecture "x86"
 
-	filter { "platforms:Win64" }
+	filter { "platforms:x64" }
 		system "Windows"
 		architecture "x86_64"
 		
