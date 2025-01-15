@@ -1,0 +1,22 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/msbuild.yml
+    
+  tests:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: run tests
+        run: bin/Debug/tests.exe
