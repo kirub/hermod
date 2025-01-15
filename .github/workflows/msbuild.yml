@@ -7,10 +7,6 @@ name: Build
 
 on:
   workflow_call:
-    outputs:
-       build_runner: 
-         description: "Runner on which repo has been built"
-         value: ${{ jobs.build.RUNNER.name }}
   
 env:
   # Path to the solution file relative to the root of the project.
@@ -28,18 +24,11 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    outputs:
-     RUNNER: ${{ runner.name }}
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - uses: abel0b/setup-premake@v2.4
-      with:
-        version: "5.0.0-beta2"
     - name: Compile my project
-      run: premake5 --file=scripts/premake5.lua vs2022
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: scripts/premake5 --file=scripts/premake5.lua vs2022
       
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
