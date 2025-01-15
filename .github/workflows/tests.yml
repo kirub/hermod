@@ -10,14 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    uses: ./.github/workflows/msbuild.yml
     
   tests:
-    runs-on: ${{needs.build.outputs.build_runner}}
-    needs: build
+    runs-on: windows-latest
 
     steps:
+      - name: build
+        uses: ./.github/workflows/msbuild.yml
       - name: run tests
         working-directory: ${{env.GITHUB_WORKSPACE}}bin\Debug\
         run: tests.exe
