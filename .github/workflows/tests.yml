@@ -26,17 +26,22 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
-      - uses: abel0b/setup-premake@v2.4
+          submodules: recursive        
+          
+      - name: MSBuild Setup
+        uses: microsoft/setup-msbuild@v1.0.2
+        
+      - name: Premake Setup
+        uses: abel0b/setup-premake@v2.4
         with:
           version: "5.0.0-beta2"
-      - name: Compile my project
+          
+      - name: Bootstrap Project
         run: premake5.exe --file=scripts/premake5.lua vs2022
         
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
   
       #- name: Restore NuGet packages
       #  working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -47,6 +52,5 @@ jobs:
         # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
         run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.PLATFORM_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
         
-      - name: run tests
-        working-directory: ${{env.BIN_PATH}}/Debug
-        run: tests.exe
+      - name: Tests
+        run: ${{env.BIN_PATH}}/Debug/tests.exe
