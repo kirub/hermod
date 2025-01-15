@@ -6,11 +6,8 @@
 name: MSBuild
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
+  workflow_call:
+  
 env:
   # Path to the solution file relative to the root of the project.
   SOLUTION_FILE_PATH: build/hermod.sln
