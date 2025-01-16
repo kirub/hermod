@@ -10,8 +10,9 @@ namespace serialization
     FakeWriteStream::FakeWriteStream(int InSizeInBytes)
         : IStream(Writing)
         , SizeMax(InSizeInBytes)
-        , CurrentSize(0)
+        , CurrentSizeInBits(0)
         , Error(PROTO_ERROR_NONE)
+        , AccumulatedBits(0)
     {
     }
 
@@ -21,7 +22,8 @@ namespace serialization
 
     void FakeWriteStream::Reset()
     {
-        CurrentSize = 0;
+        CurrentSizeInBits = 0;
+        AccumulatedBits = 0;
         Error = PROTO_ERROR_NONE;
     }
 
@@ -40,9 +42,9 @@ namespace serialization
         assert(InBitsCount > 0);
         assert(InBitsCount <= 32);
         AccumulatedBits += InBitsCount;
-        if (AccumulatedBits > 32)
+        if (AccumulatedBits >= 32)
         {
-            CurrentSize += 32;
+            CurrentSizeInBits += 32;
             AccumulatedBits = AccumulatedBits % 32;
         }
         return true;
@@ -59,7 +61,7 @@ namespace serialization
         assert((AccumulatedBits % 8) == 0);
 
         uint32_t Unused = 0;
-        int RemainingBytes = std::min(InBytesCount, (4 - (CurrentSize % 32)) % 4);
+        int RemainingBytes = std::min(InBytesCount, (4 - (AccumulatedBits % 32) / 8) % 4);
         for (int idx = 0; idx < RemainingBytes; ++idx)
             SerializeBits(Unused, 8);
         
@@ -69,9 +71,9 @@ namespace serialization
         assert(AccumulatedBits == 0);
 
         int MaxWords = (InBytesCount - RemainingBytes) / 4;
-        CurrentSize += MaxWords * 4;
+        CurrentSizeInBits += MaxWords * 32;
 
-        RemainingBytes = InBytesCount - (MaxWords * 4);
+        RemainingBytes = InBytesCount - ((MaxWords * 4) + RemainingBytes);
         assert(RemainingBytes < 4);
 
         for(int idx = 0; idx < RemainingBytes; ++idx)
@@ -81,16 +83,24 @@ namespace serialization
         return true;
     }
 
-    bool FakeWriteStream::SerializeAlign()
+    bool FakeWriteStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
         uint32_t unused = 0;
-        SerializeBits(unused, GetAlignBits());
+        if (int AlignedBits = GetAlignBits(AlignToBits))
+        {
+            SerializeBits(unused, AlignedBits);
+        }
         return true;
     }
 
     int FakeWriteStream::GetAlignBits() const
     {
-        return (8 - (CurrentSize % 8)) % 8;
+        return GetAlignBits(8);
+    }
+
+    int FakeWriteStream::GetAlignBits(uint32_t AlignToBits) const
+    {
+        return (AlignToBits - (AccumulatedBits % AlignToBits)) % AlignToBits;
     }
 
     bool FakeWriteStream::SerializeCheck(const char* string)
@@ -105,7 +115,7 @@ namespace serialization
 
     void FakeWriteStream::Flush()
     {
-        CurrentSize += AccumulatedBits;
+        CurrentSizeInBits += AccumulatedBits;
         AccumulatedBits = 0;
     }
     
@@ -116,7 +126,7 @@ namespace serialization
 
     bool FakeWriteStream::WouldOverflow(int bytes) const
     {
-        return CurrentSize + AccumulatedBits + bytes * 8 > SizeMax;
+        return CurrentSizeInBits + AccumulatedBits + bytes * 8 > SizeMax;
     }
 
     const uint8_t* FakeWriteStream::GetData()
@@ -131,12 +141,12 @@ namespace serialization
 
     int FakeWriteStream::GetBytesProcessed() const
     {
-        return (CurrentSize + 7) / 8;
+        return (CurrentSizeInBits + 7) / 8;
     }
 
     int FakeWriteStream::GetBitsProcessed() const
     {
-        return CurrentSize;
+        return CurrentSizeInBits;
     }
 
     int FakeWriteStream::GetBitsRemaining() const
@@ -150,12 +160,12 @@ namespace serialization
 
     int FakeWriteStream::GetTotalBits() const
     {
-        return CurrentSize + AccumulatedBits;
+        return CurrentSizeInBits + AccumulatedBits;
     }
 
     int FakeWriteStream::GetTotalBytes() const
     {
-        return ( CurrentSize + AccumulatedBits + 7) / 8;
+        return ( CurrentSizeInBits + AccumulatedBits + 7) / 8;
     }
 
     int FakeWriteStream::GetError() const

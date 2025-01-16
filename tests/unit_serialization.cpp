@@ -11,6 +11,7 @@
 #include "Vector2f.h"
 
 #include <gtest/gtest.h>
+#include <hermod/serialization/FakeWriteStream.h>
 
 static const bool DISABLE_TIMEOUT = true;
 
@@ -55,6 +56,8 @@ void UnitTest_SerializePrimitives<const char*>(const char* TestValue)
     EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
     EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
     EXPECT_EQ(strcmp(OgTest, ReadTest),0);
+
+    delete[] OgTest;
 }
 
 template <>
@@ -76,6 +79,49 @@ void UnitTest_SerializePrimitives<std::string>(std::string TestValue)
     EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
     EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
     EXPECT_EQ(OgTest, ReadTest);
+}
+
+template < typename T>
+void UnitTest_CompareStreamSerializePrimitives(serialization::IStream& Writer1, serialization::IStream& Writer2, T TestValue)
+{
+    Writer1.Reset();
+    Writer2.Reset();
+
+    Writer1.Serialize(TestValue);
+    Writer2.Serialize(TestValue);
+
+    EXPECT_EQ(Writer1.GetDataSize(), Writer2.GetDataSize());
+}
+
+template <>
+void UnitTest_CompareStreamSerializePrimitives<const char*>(serialization::IStream& Writer1, serialization::IStream& Writer2, const char* TestValue)
+{
+    Writer1.Reset();
+    Writer2.Reset();
+
+    std::size_t StringLen = strlen(TestValue);
+    char* OgTest = new char[StringLen + 1];
+    memcpy(OgTest, TestValue, sizeof(char) * StringLen);
+    OgTest[StringLen] = '\0';
+
+    Writer1.Serialize<char*>(OgTest, StringLen);
+    Writer2.Serialize<char*>(OgTest, StringLen);
+
+    EXPECT_EQ(Writer1.GetDataSize(), Writer2.GetDataSize());
+
+    delete[] OgTest;
+}
+
+template <>
+void UnitTest_CompareStreamSerializePrimitives<std::string>(serialization::IStream& Writer1, serialization::IStream& Writer2, std::string TestValue)
+{
+    Writer1.Reset();
+    Writer2.Reset();
+
+    Writer1.Serialize<std::string>(TestValue, TestValue.length());
+    Writer2.Serialize<std::string>(TestValue, TestValue.length());
+
+    EXPECT_EQ(Writer1.GetDataSize(), Writer2.GetDataSize());
 }
 
 TEST(Serialization, SerializeBuffer)
@@ -248,37 +294,103 @@ TEST(Serialization, SerializeEnum)
     UnitTest_SerializePrimitives(EnumTest::B);
 }
 
-//Client: 127.0.0.1:30000 300001
-//Server: 30000
-/*DEFINE_UNIT_TEST(Serialization)
-{        
-    location = std::source_location::current();
 
-    UnitTest_SerializePrimitives(true);
-    UnitTest_SerializePrimitives<uint8_t>(8);
-    UnitTest_SerializePrimitives<uint16_t>(16);
-    UnitTest_SerializePrimitives<uint32_t>(32);
-    UnitTest_SerializePrimitives<uint64_t>(64);
-    UnitTest_SerializePrimitives<int8_t>(-8);
-    UnitTest_SerializePrimitives<int16_t>(-16);
-    UnitTest_SerializePrimitives<int32_t>(-32);
-    UnitTest_SerializePrimitives<int64_t>(-64);
-    UnitTest_SerializePrimitives<float>(123.456f);
-    UnitTest_SerializePrimitives<double>(987654.321);
+TEST(Serialization_FakeStream, SerializeBool)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives(Writer1, Writer2, true);
+}
+TEST(Serialization_FakeStream, SerializeUInt8)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<uint8_t>(Writer1, Writer2, 8);
+}
+TEST(Serialization_FakeStream, SerializeUInt16)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<uint16_t>(Writer1, Writer2, 16);
+}
+TEST(Serialization_FakeStream, SerializeUInt32)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<uint32_t>(Writer1, Writer2, 32);
+}
+TEST(Serialization_FakeStream, SerializeUInt64)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<uint64_t>(Writer1, Writer2, 64);
+}
+TEST(Serialization_FakeStream, SerializeInt8)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<int8_t>(Writer1, Writer2, -8);
+}
+TEST(Serialization_FakeStream, SerializeInt16)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<int16_t>(Writer1, Writer2, -16);
+}
+TEST(Serialization_FakeStream, SerializeInt32)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<int32_t>(Writer1, Writer2, -32);
+}
+TEST(Serialization_FakeStream, SerializeInt64)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<int64_t>(Writer1, Writer2, -64);
+}
+TEST(Serialization_FakeStream, SerializeFloat)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<float>(Writer1, Writer2, 123.456f);
+}
+TEST(Serialization_FakeStream, SerializeDouble)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives<double>(Writer1, Writer2, 987654.321);
+}
+TEST(Serialization_FakeStream, SerializeStdString)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
     std::string Test("TestString");
-    UnitTest_SerializePrimitives("TestString\0");
-    UnitTest_SerializePrimitives(Test);
-    UnitTest_SerializePrimitives(Test::B);
-    UnitTest_SerializeVector2f();
-    const int BufferSize = 1018;
-    uint8_t* Buffer = new uint8_t[BufferSize];
-    for (int idx = 0; idx < BufferSize; ++idx)
-    {
-        Buffer[idx] = (uint8_t) 1 + (( idx) % 254);
-    }
-    UnitTest_SerializeBuffer(Buffer, BufferSize);
-    UnitTest_SerializeBufferAlignedOnWord(Buffer, BufferSize);
-    UnitTest_SerializeBufferNotAligned(Buffer, BufferSize);
+    UnitTest_CompareStreamSerializePrimitives(Writer1, Writer2, Test);
+}
+TEST(Serialization_FakeStream, SerializeCString)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
 
-    return true;
-}*/
+    UnitTest_CompareStreamSerializePrimitives(Writer1, Writer2, "TestString\0");
+}
+TEST(Serialization_FakeStream, SerializeEnum)
+{
+    serialization::WriteStream Writer1(MaxMTUSize);
+    serialization::FakeWriteStream Writer2(MaxMTUSize);
+
+    UnitTest_CompareStreamSerializePrimitives(Writer1, Writer2, EnumTest::B);
+}
