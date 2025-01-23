@@ -25,14 +25,15 @@ template < TSocket SocketType>
 class Connection
 	: public IConnection
 {
-public:
+public:	
 
 	Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
 	Connection(Address InRemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
 
-	virtual bool Send(proto::INetObject& Packet);
+	virtual bool Send(proto::INetObject& Packet, EReliability InReliability = Unreliable) override;
+	bool Send(serialization::WriteStream& Stream, EReliability InReliability = Unreliable) override;
 	bool Send(unsigned char* Data, std::size_t Len);
-	virtual const unsigned char* GetData();
+	virtual const unsigned char* GetData() override;
 
 	bool IsConnected() const;
 	bool IsClient() const;
@@ -41,6 +42,8 @@ public:
 	Error Update(TimeMs timeDelta);
 private:
 
+	void AckPacketSent(uint16_t InPacketId);
+	void Resend(uint16_t InPacketId);
 	bool Flush();
 	void OnPacketReceived(serialization::ReadStream& Stream);
 
@@ -53,6 +56,9 @@ private:
 	std::unique_ptr<ISocket> Socket;
 	std::unique_ptr<IProtocol> MyProtocol;
 	proto::FragmentHandler Fragments;
+
+	static const int PacketSentHistorySize = 64;
+	serialization::WriteStream PacketsSent[PacketSentHistorySize];
 };
 
 #include "Connection.inl"

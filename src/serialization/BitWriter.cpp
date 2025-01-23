@@ -7,7 +7,6 @@ namespace serialization
         : m_data((uint32_t*)data)
         , m_numWords(bytes / 4)
     {
-        assert(data);
         assert((bytes % 4) == 0);           // buffer size must be a multiple of four
         Reset();
     }
@@ -20,6 +19,14 @@ namespace serialization
         m_wordIndex = 0;
         m_scratch = 0;
         m_scratchBits = 0;
+    }
+
+    void BitWriter::Reset(void* data, int bytes)
+    {
+        m_data = (uint32_t*)data;
+        m_numWords = bytes / 4;
+        assert((bytes % 4) == 0);           // buffer size must be a multiple of four
+        Reset();
     }
 
     void BitWriter::WriteBits(uint32_t value, int bits)

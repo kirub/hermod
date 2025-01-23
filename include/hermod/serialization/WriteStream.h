@@ -9,11 +9,17 @@ namespace serialization
     {
     public:
 
+        WriteStream();
         WriteStream(int InSizeInBytes);
         WriteStream(unsigned char* InBuffer, int InSizeInBytes);
         WriteStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter);
+        WriteStream(const WriteStream& Rhs);
+        WriteStream& operator=(const WriteStream& Rhs);
+
+        virtual bool IsValid() const;
 
         virtual ~WriteStream();
+        void Clear();
         virtual void Reset();
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;

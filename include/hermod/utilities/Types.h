@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <concepts>
+#include <limits>
 
 typedef double TimeMs;
 
@@ -10,8 +11,20 @@ const unsigned int DefaultProtocolId = 666;
 const int MaxMTUSize = 1472;
 const int MaxFragmentSize = 1024;
 const int MaxStreamSize = 1024 * 64;
-const int ProtocolHeaderSize = 10;
+const int ProtocolHeaderSize = 18;
 const int FragmentHeaderSize = 6;
+
+enum EReliability
+{
+	Unreliable,
+	Reliable
+};
+
+using NetObjectId = uint64_t;
+static constexpr NetObjectId InvalidNetObjectId = std::numeric_limits<uint64_t>::max();
+#define PTR_TO_ID_MASK 0xfffffffffffffffull
+#define PTR_TO_ID(ObjectPtr) (((NetObjectId)ObjectPtr) & PTR_TO_ID_MASK)
+#define ID_TO_PTR(Type, Id) ((Type)Id)
 
 // compile time FNV-1a
 constexpr uint32_t Hash32_CT(const char* str, size_t n, uint32_t basis = UINT32_C(2166136261)) {

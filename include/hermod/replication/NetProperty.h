@@ -11,25 +11,36 @@ namespace proto
 
 		PropertyType Value;
 		serialization::NetPropertySettings<PropertyType> Properties;
+		std::function<void(const PropertyType& InValue)> OnSerializeCallback;
 
 
 		virtual bool SerializeImpl(serialization::IStream& Stream)
 		{
+			if (OnSerializeCallback)
+			{
+				OnSerializeCallback(Value);
+			}
 			return Stream.Serialize(Value, Properties);
 		}
 
 	public:
 
-		NetProperty(INetObject& Parent, const PropertyType InValue)
-			: NetProperty(Parent, InValue, serialization::NetPropertySettings<PropertyType>())
+		NetProperty(const PropertyType InValue)
+			: NetProperty(InValue, serialization::NetPropertySettings<PropertyType>())
 		{
 		}
-		NetProperty(INetObject& Parent, const PropertyType InValue, const serialization::NetPropertySettings<PropertyType>& InProperties)
-			: INetProperty(Parent)
+		NetProperty(const PropertyType InValue, const serialization::NetPropertySettings<PropertyType>& InProperties)
+			: INetProperty()
 			, Properties(InProperties)
 			, Value(InValue)
+			, OnSerializeCallback()
 		{
 			operator=(InValue);
+		}
+
+		void OnSerialize(std::function<void(const PropertyType& InValue)> InCallback)
+		{
+			OnSerializeCallback = InCallback;
 		}
 
 		operator const PropertyType& () const

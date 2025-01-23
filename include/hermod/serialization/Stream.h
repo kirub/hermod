@@ -1,6 +1,9 @@
 #pragma once
+
 #include <hermod/serialization/NetTypeTraits.h>
+#include <hermod/serialization/NetIdMapping.h>
 #include <hermod/utilities/Utils.h>
+#include <hermod/utilities/Types.h>
 
 #include <cassert>
 #include <cstdint>
@@ -27,19 +30,25 @@ namespace serialization
         IStream(EOperationType InOpType);
         virtual void Reset() = 0;
 
-        virtual int GetError() const = 0;
-        virtual const uint8_t* GetData() { return nullptr; };
-        virtual int GetDataSize() const { return 0; }
-        virtual bool WouldOverflow(int bits) const = 0;
-        virtual void AdjustSize(int InNumBytes) {}
+        operator bool() const
+        {
+            return IsValid();
+        }
 
-        virtual int GetAlignBits() const { return 0; }
-        virtual int GetBytesProcessed() const { return 0; }
-        virtual int GetBitsProcessed() const { return 0; }
-        virtual int GetBitsRemaining() const { return 0; }
-        virtual int GetBytesRemaining() const { return 0; }
-        virtual int GetTotalBits() const { return 0; }
-        virtual int GetTotalBytes() const { return 0; }
+        virtual bool IsValid() const { return true; }
+        virtual int GetError() const = 0;
+        virtual const uint8_t* GetData();
+        virtual int GetDataSize() const;
+        virtual bool WouldOverflow(int bits) const = 0;
+        virtual void AdjustSize(int InNumBytes);
+
+        virtual int GetAlignBits() const;
+        virtual int GetBytesProcessed() const;
+        virtual int GetBitsProcessed() const;
+        virtual int GetBitsRemaining() const;
+        virtual int GetBytesRemaining() const;
+        virtual int GetTotalBits() const;
+        virtual int GetTotalBytes() const;
 
         bool IsWriting() const;
         bool IsReading() const;
@@ -47,7 +56,8 @@ namespace serialization
 
         bool Align(uint32_t AlignToBits = 8);
         bool Guard(const char* InString);
-        virtual void EndWrite() {}
+        virtual void EndWrite();
+
 
         template < typename ValueType >
         bool Serialize(ValueType& InOutValue, const serialization::NetPropertySettings<ValueType>& Properties = serialization::NetPropertySettings<ValueType>())
@@ -75,6 +85,26 @@ namespace serialization
             return true;
         }
 
+        template <Pointer T>
+        bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
+        {
+            NetObjectId Max = InvalidNetObjectId & PTR_TO_ID_MASK;
+            uint32_t hi, lo;
+            if (IsWriting())
+            {
+                NetObjectId OutValue = serialization::NetIdMapping::Get().GetOrAssignedNetId(InOutValue);
+                lo = OutValue & 0xFFFFFFFF;
+                hi = OutValue >> 32;
+            }
+            Serialize(lo, serialization::NetPropertySettings<uint32_t>(Max & 0xFFFFFFFF));
+            Serialize(hi, serialization::NetPropertySettings<uint32_t>(Max >> 32));
+            if (IsReading())
+            {
+                NetObjectId InValue = (uint64_t(hi) << 32) | lo;
+                InOutValue = serialization::NetIdMapping::Get().GetObjectFromNetId(InValue);
+            }
+            return true;
+        }
         template <>
         bool Serialize(uint64_t& InOutValue, const serialization::NetPropertySettings<uint64_t>& Properties)
         {
@@ -208,7 +238,7 @@ namespace serialization
         {
             if (IsWriting())
             {
-                assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max()/8 - 1));
+                assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max() / 8 - 1));
             }
             uint32_t Length = (uint32_t)(Properties.Length == 0 ? InOutValue.length() + 1 : (uint32_t)Properties.Length);
             SerializeBits(Length, 16);
@@ -225,7 +255,7 @@ namespace serialization
         {
             if (IsWriting())
             {
-                assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max()/8) - 1));
+                assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max() / 8) - 1));
             }
             uint32_t Length = (uint32_t)Properties.Length;
             SerializeBits(Length, 16);
@@ -267,6 +297,7 @@ namespace serialization
         }
 
 	private:
+
         template < typename InputType>
         bool serialize_bits(InputType& InOutValue, int Bits)
         {

@@ -5,6 +5,10 @@
 
 namespace serialization
 {
+    WriteStream::WriteStream()
+        : WriteStream(nullptr, 0)
+    {
+    }
     WriteStream::WriteStream(int InSizeInBytes)
         : WriteStream(new unsigned char[InSizeInBytes], InSizeInBytes, [](unsigned char* Ptr) { delete[] Ptr; })
     {
@@ -22,6 +26,31 @@ namespace serialization
         , DeleterFunc(InDeleter)
     {
     }
+    WriteStream::WriteStream(const WriteStream& Rhs)
+        : WriteStream(Rhs.GetTotalBytes())
+    {
+        memcpy((unsigned char*)Writer.GetData(), Rhs.Writer.GetData(), Rhs.GetTotalBytes());
+    }
+    WriteStream& WriteStream::operator=(const WriteStream& Rhs)
+    {
+        int SizeInBytes = Rhs.GetTotalBytes();
+        bool NeedsRealloc = (GetTotalBytes() != SizeInBytes);
+
+        if (!DeleterFunc)
+        {
+            DeleterFunc = [](unsigned char* Ptr) { delete[] Ptr; };
+        }
+        else if(NeedsRealloc)
+        {
+            delete[] Data;
+            Writer.Reset(
+                new unsigned char[SizeInBytes],
+                SizeInBytes
+            );
+        }
+        Error = PROTO_ERROR_NONE;
+        return *this;
+    }
 
     WriteStream::~WriteStream()
     {
@@ -29,6 +58,20 @@ namespace serialization
         {
             delete[] Data;
         }
+    }
+
+    bool WriteStream::IsValid() const
+    {
+        return Data && Writer.GetTotalBytes() > 0;
+    }
+
+    void WriteStream::Clear()
+    {
+        if (DeleterFunc)
+        {
+            delete[] Data;
+        }
+        Writer.Reset(nullptr, 0);
     }
 
     void WriteStream::Reset()
@@ -39,6 +82,7 @@ namespace serialization
 
     bool WriteStream::SerializeInteger(int32_t& InValue, int32_t InMin, int32_t InMax)
     {
+        assert(IsValid());
         assert(InMin < InMax);
         assert(InValue >= InMin);
         assert(InValue <= InMax);
@@ -50,6 +94,7 @@ namespace serialization
 
     bool WriteStream::SerializeBits(uint32_t& InValue, int InBitsCount)
     {
+        assert(IsValid());
         assert(InBitsCount > 0);
         assert(InBitsCount <= 32);
         Writer.WriteBits(InValue, InBitsCount);
@@ -58,6 +103,7 @@ namespace serialization
 
     bool WriteStream::SerializeBytes(const uint8_t* InData, int InBytesCount)
     {
+        assert(IsValid());
         assert(InData);
         assert(InBytesCount >= 0);
         Writer.WriteAlign(8);
@@ -67,6 +113,7 @@ namespace serialization
 
     bool WriteStream::SerializeAlign(uint32_t AlignToBits /*= 8*/)
     {
+        assert(IsValid());
         Writer.WriteAlign(AlignToBits);
         return true;
     }

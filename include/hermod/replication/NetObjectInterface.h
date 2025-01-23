@@ -13,6 +13,7 @@
 #include <memory>
 #include <vector>
 #include <tuple>
+#include <hermod/serialization/FakeWriteStream.h>
 
 
 namespace proto
@@ -29,7 +30,8 @@ class HERMOD_API INetObject
 protected:
 	enum ENetObjectType
 	{
-		Object = 0,
+		Fragment = 0,
+		Object,
 		Function,
 
 		Count
@@ -52,6 +54,7 @@ private:
 
 #pragma warning(push)
 #pragma warning(disable : 4251)
+	NetProperty<NetObjectId>	NetId;
 	PropertiesContainer			Properties;
 #pragma warning(pop)
 }; 

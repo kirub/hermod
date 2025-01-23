@@ -7,6 +7,15 @@ namespace serialization
 {
     bool FakeWriteStream::SimulateBitpacker = true;
 
+    FakeWriteStream::FakeWriteStream()
+        : IStream(Writing)
+        , SizeMax(0)
+        , CurrentSizeInBits(0)
+        , Error(PROTO_ERROR_NONE)
+        , AccumulatedBits(0)
+    {
+    }
+
     FakeWriteStream::FakeWriteStream(int InSizeInBytes)
         : IStream(Writing)
         , SizeMax(InSizeInBytes)

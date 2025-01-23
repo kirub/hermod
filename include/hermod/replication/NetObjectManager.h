@@ -1,10 +1,11 @@
 #pragma once
 
-#include <hermod/replication/NetPropertyInterface.h>
-
+#include <hermod/Platform/Platform.h>
+#include <hermod/utilities/Types.h>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 
 class IConnection;
 
@@ -18,14 +19,15 @@ namespace serialization
 namespace proto
 {
     class INetObject;
+    class INetProperty;
 }
 
 class NetObjectManager
 {
     NetObjectManager() = default;
 public:
-    using RetNetObjectType = proto::INetObject*;
-    using ObjectConstructor = std::function<RetNetObjectType()>;
+    using NetObjectType = proto::INetObject*;
+    using ObjectConstructor = std::function<NetObjectType()>;
     template < std::derived_from<proto::INetProperty> T>
     using PropertyListenerWithT = std::function<void(const T&)>;
     using PropertyListener = std::function<void(const proto::INetProperty&)>;
@@ -36,44 +38,23 @@ public:
     HERMOD_API static NetObjectManager& Get();
 
     template < std::derived_from<proto::INetObject> T>
-    void Register(const ObjectConstructor& Contructor = []() { return new T(); })
-    {
-        Factory.insert({ T::NetObjectId::value, Contructor });
-    }
+    void Register(const ObjectConstructor& Contructor = []() { return new T(); });
     template < std::derived_from<proto::INetObject> T>
-    void Unregister()
-    {
-        Factory.erase(T::NetObjectId::value);
-    }
+    void Unregister();
 
 
     template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>
-    bool RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener)
-    {
-        return ObjectListeners.insert({ NetObject::NetObjectId::value, { Property.GetIndex(), Listener} }).second;
-    }
+    bool RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener);
 
     void Unregister(const uint32_t ObjectClassId);
 
     uint32_t NetObjectsCount() const;
 
-    HERMOD_API RetNetObjectType Instantiate(const uint32_t ObjectClassId) const;
+    HERMOD_API NetObjectType Instantiate(const uint32_t ObjectClassId) const;
     template < typename... Args >
-    RetNetObjectType Instantiate(const uint32_t ObjectClassId, Args&&... InArgs) const
-    {
-        ObjectsConstructorContainer::const_iterator itFound = Factory.find(ObjectClassId);
-        if (itFound == Factory.end())
-        {
-            return nullptr;
-        }
-
-        return itFound->second(std::forward<Args>(InArgs)...);
-    }
-
-    //HERMOD_API RetNetObjectType HandlePacket(serialization::ReadStream& Reader);
+    NetObjectType Instantiate(const uint32_t ObjectClassId, Args&&... InArgs) const;
 
     void ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections);
-    //HERMOD_API bool SerializeObject(proto::INetObject*& NetObject, serialization::IStream& Stream);
 
     HERMOD_API std::optional<PropertiesListenerContainer> GetPropertiesListeners(proto::INetObject& NetObject) const;
 
@@ -85,3 +66,4 @@ private:
     std::vector<std::shared_ptr<proto::INetObject>> NetObjects;
 };
 
+#include "NetObjectManager.inl"

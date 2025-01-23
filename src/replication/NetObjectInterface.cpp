@@ -2,19 +2,13 @@
 #include <hermod/utilities/Hash.h>
 #include <hermod/utilities/Types.h>
 #include <hermod/replication/NetObjectManager.h>
+#include <hermod/serialization/NetIdMapping.h>
 
 namespace proto
 {
 	INetProperty::INetProperty()
-		: Dirty()
+		: Dirty(true)
 	{
-	}
-
-	INetProperty::INetProperty(INetObject& InPacket)
-		: Dirty(false)
-	{
-		InPacket.AddProperty(*this);
-		Dirty = true;
 	}
 
 	bool INetProperty::IsDirty() const
@@ -42,10 +36,17 @@ namespace proto
 	}
 
 	INetObject::INetObject()
+		: INetObject(Object)
 	{
 	}
 	INetObject::INetObject(ENetObjectType InNetObjectType)
+		: Properties()
+		, NetId(serialization::NetIdMapping::Get().GetOrAssignedNetId(this))
 	{
+		if (InNetObjectType == Object)
+		{
+			AddProperty(NetId);
+		}
 	}
 
 	bool INetObject::SerializeImpl(serialization::IStream& Stream)

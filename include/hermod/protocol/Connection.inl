@@ -23,14 +23,28 @@ Connection<SocketType>::Connection(Address RemoteEndpoint, unsigned short Inboun
     , Writer(MaxMTUSize)
     , Reader(MaxMTUSize)
     , MyProtocol(std::make_unique<Protocol>(DefaultProtocolId))
+    , PacketsSent()
 {
-    MyProtocol->OnPacketAcked(
-        [](uint16_t InPacketId)
-        {
-            printf("Ack: %u\n", InPacketId);
-        });
+    MyProtocol->OnPacketAcked(CallableWithOwner< Connection<SocketType>, void, uint16_t >(*this, &Connection<SocketType>::AckPacketSent));
+    MyProtocol->OnPacketLost(CallableWithOwner< Connection<SocketType>, void, uint16_t >(*this, &Connection<SocketType>::Resend));
 }
 
+template < TSocket SocketType>
+void Connection<SocketType>::Resend(uint16_t InPacketId)
+{
+    const int Index = InPacketId % PacketSentHistorySize;
+    if (serialization::WriteStream ResendBuffer = PacketsSent[Index])
+    {
+        Send(ResendBuffer, Unreliable);
+    }
+}
+
+template < TSocket SocketType>
+void Connection<SocketType>::AckPacketSent(uint16_t InPacketId)
+{
+    const int Index = InPacketId % PacketSentHistorySize;
+    PacketsSent[Index].Clear();
+}
 
 template < TSocket SocketType>
 const unsigned char* Connection<SocketType>::GetData()
@@ -39,7 +53,7 @@ const unsigned char* Connection<SocketType>::GetData()
 }
 
 template < TSocket SocketType>
-bool Connection<SocketType>::Send(proto::INetObject& Packet)
+bool Connection<SocketType>::Send(proto::INetObject& Packet, EReliability InReliability)
 {
     if (!IsConnected())
     {
@@ -49,45 +63,60 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet)
 
     serialization::WriteStream BunchWriter(MaxStreamSize);
     uint32_t NetObjectClassId = Packet.GetClassId();
-    bool HasError = !BunchWriter.Serialize(NetObjectClassId);
-    Packet.SerializeProperties(BunchWriter);
+    bool HasError = !(BunchWriter.Serialize(NetObjectClassId) && Packet.SerializeProperties(BunchWriter));
     BunchWriter.EndWrite();
 
-    if (BunchWriter.GetDataSize() > MaxMTUSize)
+    if (!HasError)
     {
-        // Handle Packet Fragmentation
-        proto::FragmentHandler Fragments(BunchWriter, MaxFragmentSize);
-        for (proto::FragmentHandler::ValueType Fragment : Fragments.Entries)
+        if (BunchWriter.GetDataSize() > MaxMTUSize)
         {
-            if (Fragment)
+            // Handle Packet Fragmentation
+            proto::FragmentHandler Fragments(BunchWriter, MaxFragmentSize);
+            for (proto::FragmentHandler::ValueType Fragment : Fragments.Entries)
             {
-                if (!Send(*Fragment))
+                if (Fragment)
                 {
-                    return false;
+                    if (!Send(*Fragment, InReliability))
+                    {
+                        return false;
+                    }
                 }
             }
         }
-    }
-    else
-    {
-        Writer.Reset();
-
-        MyProtocol->Serialize(Writer);
-
-        uint32_t NetObjectClassId = Packet.GetClassId();
-        bool HasError = !Writer.Serialize(NetObjectClassId);
-
-        HasError &= Packet.Serialize(Writer);
-
-        Writer.EndWrite();
-
-        if (!HasError && Socket->Send(Writer, RemoteEndpoint))
+        else
         {
-            MyProtocol->OnPacketSent(Writer);
+            Writer.Reset();
+
+            MyProtocol->Serialize(Writer);
+
+            uint32_t NetObjectClassId = Packet.GetClassId();
+            bool HasError = !(Writer.Serialize(NetObjectClassId) && Packet.Serialize(Writer));
+
+            Writer.EndWrite();
+
+            HasError = HasError || Send(Writer, InReliability);
         }
     }
 
-    return true;
+    return !HasError;
+}
+
+template < TSocket SocketType>
+bool Connection<SocketType>::Send(serialization::WriteStream& Stream, EReliability InReliability)
+{
+    if (Socket->Send(Writer, RemoteEndpoint))
+    {
+        uint16_t PacketSequenceId = MyProtocol->OnPacketSent(Writer);
+        if (InReliability == Reliable)
+        {
+            const int Index = PacketSequenceId % PacketSentHistorySize;
+            PacketsSent[Index] = Writer;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -241,7 +270,7 @@ IConnection::Error Connection<SocketType>::Update(TimeMs TimeDelta)
          
                 OnPacketReceived(Reader);
 
-                assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream
+                assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream)
             }
             Reader.Reset();
         }

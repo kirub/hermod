@@ -7,17 +7,17 @@
 
 #include <limits>
 
-const uint16_t Protocol::InvalidSequenceId = std::numeric_limits<uint16_t>::max();
-
 Protocol::Protocol(unsigned int InId)
 	: Id(InId)
 	, NextRemoteSequenceIdx(0)
 	, NextLocalSequenceIdx(0)
-	, LastAckedPackets()
+	, NotAckedPackets()
 	, OnPacketAckedCallback(nullptr)
+	, OnPacketLostCallback(nullptr)
 {
 	memset(RemoteSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
 	memset(LocalSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
+	memset(NotAckedPackets, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
 }
 
 bool Protocol::WriteHeader(unsigned char* Data, int Len)
@@ -174,25 +174,32 @@ void Protocol::OnPacketAcked(const OnPacketAckedCallbackType& Callback)
 	OnPacketAckedCallback = Callback;
 }
 
-void Protocol::OnPacketSent(serialization::WriteStream& InStream)
+uint16_t Protocol::OnPacketSent(serialization::WriteStream InStream)
 {
 	uint32_t* BufferAtSequenceIdOffset=((uint32_t*)InStream.GetData()) + 1;
 	uint16_t PacketSentSequenceId = (uint16_t)(ntohl(*BufferAtSequenceIdOffset) & 0xFFFF);
-	OnPacketSent(PacketSentSequenceId);
+	return OnPacketSent(PacketSentSequenceId, std::move(InStream));
 }
 
-void Protocol::OnPacketSent(const unsigned char* Buffer, int Len)
+uint16_t Protocol::OnPacketSent(unsigned char* Buffer, int Len)
 {
 	uint16_t PacketSentSequenceId = InvalidSequenceId;
 	const unsigned char* BufferAtPacketIdLocation = Buffer + sizeof(UINT32);
 	if (ReadSequenceId(PacketSentSequenceId, BufferAtPacketIdLocation, Len) && PacketSentSequenceId != InvalidSequenceId)
 	{
-		CachePacket(PacketSentSequenceId, Local);
+		return OnPacketSent(PacketSentSequenceId, { Buffer , Len } );
 	}
+
+	return InvalidSequenceId;
 }
-void Protocol::OnPacketSent(const uint16_t PacketSentSequenceId)
+uint16_t Protocol::OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream)
 {
 	CachePacket(PacketSentSequenceId, Local);
+	return PacketSentSequenceId;
+}
+void Protocol::OnPacketLost(const OnPacketLostCallbackType& Callback)
+{
+	OnPacketLostCallback = Callback;
 }
 
 bool Protocol::ReadProtocolId(UINT32& ProtocolId, const unsigned char*& Data, int& Len) const
@@ -421,11 +428,11 @@ bool Protocol::CheckPacket(const uint16_t InSequenceId, SequenceIdType InSeqType
 void Protocol::AckPacket(const uint16_t InAckedPacket)
 {
 	const int Index = InAckedPacket % HistorySize;
-	LastAckedPackets[Index] = InAckedPacket;
+	NotAckedPackets[Index] = InvalidSequenceId;
 
 	if (OnPacketAckedCallback)
 	{
-		(*OnPacketAckedCallback)(InAckedPacket);
+		OnPacketAckedCallback(InAckedPacket);
 	}
 }
 
@@ -469,6 +476,22 @@ void Protocol::CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType)
 	UINT8& NextSequenceIdx = InSeqType == Local ? NextLocalSequenceIdx : NextRemoteSequenceIdx;
 	uint16_t* History = InSeqType == Local ? LocalSequenceIdHistory : RemoteSequenceIdHistory;
 
+	if (InSeqType == Local)
+	{
+		const int IndexJustSentPacketInAckedPacket = NewSequenceId % HistorySize;
+		UINT16 EvictedSequenceId = NotAckedPackets[IndexJustSentPacketInAckedPacket];
+		// Means there was a packet here before that we are evicting from history
+		if (EvictedSequenceId != InvalidSequenceId)
+		{
+			printf(__FUNCTION__ ": Packet %u lost\n", EvictedSequenceId);
+			if (OnPacketLostCallback)
+			{
+				OnPacketLostCallback(EvictedSequenceId);
+			}
+		}
+		NotAckedPackets[IndexJustSentPacketInAckedPacket] = NewSequenceId;
+	}
+
 	History[NextSequenceIdx] = NewSequenceId;
 	NextSequenceIdx = GetNextSequenceIdx(InSeqType);
 }
@@ -478,7 +501,6 @@ void Protocol::CachePacket2(uint16_t NewSequenceId, SequenceIdType InSeqType)
 {
 	UINT8& NextSequenceIdx = InSeqType == Local ? NextLocalSequenceIdx : NextRemoteSequenceIdx;
 	uint16_t* History = InSeqType == Local ? LocalSequenceIdHistory : RemoteSequenceIdHistory;
-
 
 	const int Index = NewSequenceId % HistorySize;
 	History[Index] = NewSequenceId;

@@ -49,7 +49,7 @@ public:
     {
         assert(NumberOfFragments > 0);
         NumberOfFrags = NumberOfFragments;
-        bufferSize = (MaxFragmentSize - sizeof(uint32_t) - 2) + (NumberOfFragments - 1) * MaxFragmentSize; // because we want exactly 2 fragments and serialize packets have a packet id (uint32_t) overhead + raw buffer has a 2 bytes overhead
+        bufferSize = (MaxFragmentSize - ProtocolHeaderSize) + (NumberOfFragments - 1) * MaxFragmentSize; // because we want exactly 2 fragments and serialize packets have a packet id (uint32_t) overhead + raw buffer has a 2 bytes overhead
         if (bufferSize > 0)
         {
             if (buffer)
@@ -187,7 +187,7 @@ void UnitTest_SendFragmented()
 
     MockBigPacket Packet(FragmentCount);
 
-    ASSERT_TRUE(Connection.Send(Packet));
+    ASSERT_TRUE(Connection.Send(Packet, Unreliable));
     MockBigPacket SentPacket = Packet;
     Packet.Reset();
 

@@ -13,11 +13,13 @@ namespace serialization
     public:
         BitWriter(void* data, int bytes);
 
+
         void WriteBits(uint32_t value, int bits);
         void WriteAlign(int BitsMultiple = 8);
         void WriteBytes(const uint8_t* data, int bytes);
 
         void Reset();
+        void Reset(void* data, int bytes);
         void FlushBits();
 
         bool WouldOverflow(int bits) const;

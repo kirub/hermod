@@ -12,11 +12,36 @@
 
 #include <gtest/gtest.h>
 #include <hermod/serialization/FakeWriteStream.h>
+#include <hermod/serialization/NetTypeTraits.h>
 
 static const bool DISABLE_TIMEOUT = true;
 
 serialization::WriteStream Writer(MaxMTUSize);
 serialization::ReadStream Reader(MaxMTUSize);
+
+void UnitTest_SerializePointer(proto::INetObject* TestValue)
+{
+    Writer.Reset();
+    Reader.Reset();
+
+    proto::INetObject* OgTest(TestValue);
+    proto::INetObject* ReadTest;
+
+    Writer.Serialize(OgTest);
+    memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
+    Reader.Serialize(ReadTest);
+
+    EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
+    EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
+    EXPECT_EQ(OgTest, ReadTest);
+}
+
+TEST(Serialization, SerializePointer)
+{
+    Vector2f* vec2f = new Vector2f(1234.564f, -42.5f);
+    UnitTest_SerializePointer(vec2f);
+    delete vec2f;
+}
 
 template < typename T>
 void UnitTest_SerializePrimitives(T TestValue)

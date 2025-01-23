@@ -10,6 +10,7 @@ namespace serialization
     public:
         static bool SimulateBitpacker;
 
+        FakeWriteStream();
         FakeWriteStream(int InSizeInBytes);
 
         virtual ~FakeWriteStream();

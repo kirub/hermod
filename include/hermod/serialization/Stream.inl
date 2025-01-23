@@ -1,56 +1,17 @@
-#include <hermod/serialization/Stream.h>
+#ifdef __IStream__
+
 #include <hermod/serialization/NetIdMapping.h>
-#include <string.h>
 
 namespace serialization
-{
-    IStream::IStream(EOperationType InOpType)
-        : OpType(InOpType)
-    {
-    }
-    void Reset()
-    {
-
-    }
-
-    bool IStream::IsWriting() const { return OpType == Writing; }
-
-    bool IStream::IsReading() const { return OpType == Reading; }
-
-    std::string IStream::Operation() const { return IsReading() ? "read" : "write"; }
-
-    bool IStream::Guard(const char* string)
-    {
-        return SerializeCheck(string);
-    }
-    bool IStream::Align(uint32_t AlignToBits /*= 8*/)
-    {
-        return SerializeAlign(AlignToBits);
-    }
-
-    void IStream::EndWrite() {}
-
-    const uint8_t* IStream::GetData() { return nullptr; };
-    int IStream::GetDataSize() const { return 0; }
-    void IStream::AdjustSize(int InNumBytes) {}
-
-    int IStream::GetAlignBits() const { return 0; }
-    int IStream::GetBytesProcessed() const { return 0; }
-    int IStream::GetBitsProcessed() const { return 0; }
-    int IStream::GetBitsRemaining() const { return 0; }
-    int IStream::GetBytesRemaining() const { return 0; }
-    int IStream::GetTotalBits() const { return 0; }
-    int IStream::GetTotalBytes() const { return 0; }
-
-    /*
+{	
     template < typename ValueType >
-    bool IStream::Serialize(ValueType& InOutValue, const serialization::NetPropertySettings<ValueType>& Properties)
+    bool IStream::Serialize(ValueType& InOutValue, const serialization::NetPropertySettings<ValueType>& Properties /*= serialization::NetPropertySettings<ValueType>()*/)
     {
         return false;
     }
 
     template <serialization::Boolean T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         uint32_t uint32_bool_value;
         if (IsWriting())
@@ -70,7 +31,7 @@ namespace serialization
     }
 
     template <Pointer T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         NetObjectId Max = InvalidNetObjectId & PTR_TO_ID_MASK;
         uint32_t hi, lo;
@@ -107,7 +68,7 @@ namespace serialization
         return true;
     }
     template <serialization::Signed T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         assert(Properties.Min < Properties.Max);
         int32_t int32_value = 0;
@@ -147,13 +108,13 @@ namespace serialization
         return true;
     }
     template <serialization::Unsigned T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         return serialize_bits(InOutValue, utils::bits_required(0, Properties.Max));
     }
 
     template <std::floating_point T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         uint64_t IntegerValue = 0;
         uint8_t BitsRequired = sizeof(T) * 8;
@@ -222,7 +183,7 @@ namespace serialization
     {
         if (IsWriting())
         {
-            assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max() / 8 - 1));
+            assert(Properties.Length < uint16_t(std::numeric_limits<uint16_t>::max()/8 - 1));
         }
         uint32_t Length = (uint32_t)(Properties.Length == 0 ? InOutValue.length() + 1 : (uint32_t)Properties.Length);
         SerializeBits(Length, 16);
@@ -235,11 +196,11 @@ namespace serialization
         return true;
     }
     template <serialization::StringBuffer T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         if (IsWriting())
         {
-            assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max() / 8) - 1));
+            assert(Properties.Length < std::size_t((std::numeric_limits<uint32_t>::max()/8) - 1));
         }
         uint32_t Length = (uint32_t)Properties.Length;
         SerializeBits(Length, 16);
@@ -251,7 +212,7 @@ namespace serialization
         return true;
     }
     template <serialization::Buffer T>
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         if (IsWriting())
         {
@@ -263,7 +224,7 @@ namespace serialization
         return true;
     }
     template < serialization::Enumeration T >
-    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties)
+    bool IStream::Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties /*= serialization::NetPropertySettings<T>()*/)
     {
         static_assert(std::is_standard_layout_v<std::underlying_type<T>>, "Enumeration underlying type must be pod");
         std::underlying_type_t<T> PODTypeValue;
@@ -299,28 +260,7 @@ namespace serialization
             InOutValue = static_cast<InputType>(uint32_value);
         }
         return true;
-    }*/
-
-
-    /*template bool IStream::Serialize<bool>(bool&, const serialization::NetPropertySettings<bool>&);
-    template bool IStream::Serialize< proto::INetObject* >(proto::INetObject*&, const serialization::NetPropertySettings<proto::INetObject*>&);
-    template bool IStream::Serialize(int8_t&, const serialization::NetPropertySettings<int8_t>&);
-    template bool IStream::Serialize(int16_t&, const serialization::NetPropertySettings<int16_t>&);
-    template bool IStream::Serialize(int32_t&, const serialization::NetPropertySettings<int32_t>&);
-    template bool IStream::Serialize<int64_t>(int64_t&, const serialization::NetPropertySettings<int64_t>&);
-    template bool IStream::Serialize<uint8_t>(uint8_t&, const serialization::NetPropertySettings<uint8_t>&);
-    template bool IStream::Serialize<uint16_t>(uint16_t&, const serialization::NetPropertySettings<uint16_t>&);
-    template bool IStream::Serialize<uint32_t>(uint32_t&, const serialization::NetPropertySettings<uint32_t>&);
-    template bool IStream::Serialize<uint64_t>(uint64_t&, const serialization::NetPropertySettings<uint64_t>&);
-    template bool IStream::Serialize<float>(float&, const serialization::NetPropertySettings<float>&);
-    template bool IStream::Serialize<double>(double&, const serialization::NetPropertySettings<double>&);
-    template bool IStream::Serialize<std::string>(std::string&, const serialization::NetPropertySettings<std::string>&);
-    template bool IStream::Serialize<char*>(char*&, const serialization::NetPropertySettings<char*>&);
-    template bool IStream::Serialize<unsigned char*>(unsigned char*&, const serialization::NetPropertySettings<unsigned char*>&);
-    template bool IStream::Serialize<uint8_t*>(uint8_t*&, const serialization::NetPropertySettings<uint8_t*>&);
-
-    template bool IStream::serialize_bits<bool>(bool&, int);
-    template bool IStream::serialize_bits<uint8_t>(uint8_t&, int);
-    template bool IStream::serialize_bits<uint16_t>(uint16_t&, int);
-    template bool IStream::serialize_bits<uint32_t>(uint32_t&, int);*/
+    }
 }
+
+#endif

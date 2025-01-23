@@ -14,16 +14,17 @@ class HERMOD_API Protocol
 {
 public:
 
-
 	Protocol(unsigned int InId);
 
-	virtual bool WriteHeader(unsigned char* Data, int Len);
-	virtual bool CheckHeader(const unsigned char*& Data, int& Len);
-	virtual bool Serialize(serialization::IStream& InStream);
+	virtual bool WriteHeader(unsigned char* Data, int Len) override;
+	virtual bool CheckHeader(const unsigned char*& Data, int& Len) override;
+	virtual bool Serialize(serialization::IStream& InStream) override;
 
-	virtual void OnPacketSent(serialization::WriteStream& InStream);
-	virtual void OnPacketSent(const unsigned char* Buffer, int Len);
-	virtual void OnPacketAcked(const IProtocol::OnPacketAckedCallbackType& Callback);
+	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) override;
+	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream) override;
+	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
+	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
+	virtual void OnPacketAcked(const IProtocol::OnPacketAckedCallbackType& Callback) override;
 
 	virtual const int Size() const;
 
@@ -38,9 +39,7 @@ private:
 
 	static const UINT8 HistorySize = 33;
 	static const UINT8 InvalidSequenceIdx = 255;
-	static const uint16_t InvalidSequenceId;
 
-	void OnPacketSent(const uint16_t PacketSentSequenceId);
 
 	bool WriteProtocolId(unsigned char*& Data, int& Len) const;
 	bool WriteSequenceId(unsigned char*& Data, int& Len);
@@ -68,12 +67,13 @@ private:
 	void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
 	void CachePacket2(uint16_t NewSequenceId, SequenceIdType InSeqType);
 
+	OnPacketLostCallbackType OnPacketLostCallback;
 	OnPacketAckedCallbackType OnPacketAckedCallback;
 
 	unsigned int Id;
 	uint16_t LocalSequenceIdHistory[HistorySize];
 	uint16_t RemoteSequenceIdHistory[HistorySize];
-	uint16_t LastAckedPackets[HistorySize];
+	uint16_t NotAckedPackets[HistorySize];
 	UINT8 NextLocalSequenceIdx;
 	UINT8 NextRemoteSequenceIdx;
 };

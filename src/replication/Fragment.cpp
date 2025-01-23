@@ -9,7 +9,8 @@ namespace proto
 	}
 
 	Fragment::Fragment(uint8_t InFragmentId, uint8_t InFragmentCount, unsigned char* InFragmentData, const std::size_t InFragmentSize)
-		: Id(InFragmentId)
+		: INetObject(INetObject::Fragment)
+		, Id(InFragmentId)
 		, Count(InFragmentCount)
 		, Data(new unsigned char[InFragmentSize])
 		, DataSize(InFragmentSize)

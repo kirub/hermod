@@ -11,6 +11,11 @@
 #include <string>
 #include <concepts>
 
+namespace proto
+{
+	class INetObject;
+}
+
 namespace serialization
 {
 	template <typename T>
@@ -41,10 +46,10 @@ namespace serialization
 	template <typename SignedType>			concept Signed = std::signed_integral<SignedType> && !std::is_same_v<SignedType, int64_t>;
 	template <typename ArrayType>			concept Array = std::is_bounded_array_v<ArrayType>;
 	template <typename EnumType>			concept Enumeration = std::is_enum_v<EnumType>;
-	template <typename PointerType>			concept Pointer = std::is_pointer_v<PointerType>;
 	template <typename BufferType>			concept Buffer = is_raw_buffer<BufferType>::value && !is_string<BufferType>::value && !Enumeration<BufferType>;
 	template <typename StringType>			concept String = is_string<StringType>::value && !Buffer< StringType>;
 	template <typename StringBufferType>	concept StringBuffer = String<StringBufferType> && !std::is_same_v<StringBufferType, std::string>;
+	template <typename PointerType>			concept Pointer = std::is_pointer_v<PointerType> && !Buffer<PointerType> && !String<PointerType>;
 	template <typename BoolType>			concept Boolean = std::_Is_character_or_byte_or_bool<BoolType>::value && !std::integral<BoolType>;
 
 	template < typename PropertyType >
@@ -73,7 +78,7 @@ namespace serialization
 			, Max(InMax)
 		{
 		}
-	};	
+	};
 
 	template <std::unsigned_integral T>
 	struct NetPropertySettings<T>
@@ -183,23 +188,22 @@ namespace serialization
 		{
 		}
 	};
-
-	/*template struct HERMOD_API NetPropertySettings<uint8_t>;
-	template struct HERMOD_API NetPropertySettings<uint16_t>;
-	template struct HERMOD_API NetPropertySettings<uint32_t>;
-	template struct HERMOD_API NetPropertySettings<uint64_t>;
-			 
-	template struct HERMOD_API NetPropertySettings<int8_t>;
-	template struct HERMOD_API NetPropertySettings<int16_t>;
-	template struct HERMOD_API NetPropertySettings<int32_t>;
-	template struct HERMOD_API NetPropertySettings<int64_t>;
-			 
-	template struct HERMOD_API NetPropertySettings<std::string>;
-	template struct HERMOD_API NetPropertySettings<const char*>;
-	template struct HERMOD_API NetPropertySettings<const unsigned char*>;
-	template struct HERMOD_API NetPropertySettings<char*>;
-	template struct HERMOD_API NetPropertySettings<unsigned char*>;
-			 
-	template struct HERMOD_API NetPropertySettings<float>;
-	template struct HERMOD_API NetPropertySettings<double>;*/
+	
+	/*
+	template struct NetPropertySettings<bool>;
+	template struct NetPropertySettings<proto::INetObject*>;
+	template struct NetPropertySettings<int8_t>;
+	template struct NetPropertySettings<int16_t>;
+	template struct NetPropertySettings<int32_t>;
+	template struct NetPropertySettings<int64_t>;
+	template struct NetPropertySettings<uint8_t>;
+	template struct NetPropertySettings<uint16_t>;
+	template struct NetPropertySettings<uint32_t>;
+	template struct NetPropertySettings<uint64_t>;
+	template struct NetPropertySettings<float>;
+	template struct NetPropertySettings<double>;
+	template struct NetPropertySettings<std::string>;
+	template struct NetPropertySettings<char*>;
+	template struct NetPropertySettings<unsigned char*>;
+	template struct NetPropertySettings<uint8_t*>;*/
 }

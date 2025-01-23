@@ -7,6 +7,7 @@ Protocol2::Protocol2(unsigned int InId)
 	: Id(InId)
 	, LocalSequenceId(0)
 	, LastRemoteSequenceIdx(InvalidSequenceIdx)
+	, OnPacketAckedCallback(nullptr)
 {
 	memset(LastAckedPackets, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
 	memset(RemoteSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);

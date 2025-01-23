@@ -26,8 +26,6 @@ namespace proto
 	}
 
 	FragmentHandler::FragmentHandler(serialization::WriteStream& Stream, const std::size_t& MaxFragmentSize)
-		: NumFragments((Stream.GetDataSize() / MaxFragmentSize) + ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1)
-		, Entries(NumFragments)
 	{
 		NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
 		NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
