@@ -123,9 +123,6 @@ template < TSocket SocketType, TProtocol ProtocolType>
 uint16_t Connection<SocketType, ProtocolType>::OnPacketSent(serialization::WriteStream& InStream, EReliability InReliability)
 {
     uint16_t PacketSequenceId = MyProtocol->OnPacketSent(InStream);
-#if WITH_TESTS
-    LastSentPacketId = PacketSequenceId;
-#endif
     if (InReliability == Reliable)
     {
         const int Index = PacketSequenceId % PacketSentHistorySize;

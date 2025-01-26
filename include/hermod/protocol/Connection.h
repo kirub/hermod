@@ -61,10 +61,6 @@ protected:
 
 	static const int PacketSentHistorySize = 64;
 	serialization::WriteStream PacketsSent[PacketSentHistorySize];
-
-#if WITH_TESTS
-	uint16_t LastSentPacketId;
-#endif
 };
 
 #include "Connection.inl"
