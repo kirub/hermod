@@ -20,8 +20,9 @@ namespace proto
 }
 
 template < typename T> concept TSocket = std::derived_from<T, ISocket>;
+template < typename T> concept TProtocol = std::derived_from<T, IProtocol>;
 
-template < TSocket SocketType>
+template < TSocket SocketType, TProtocol ProtocolType>
 class Connection
 	: public IConnection
 {
@@ -31,7 +32,7 @@ public:
 	Connection(Address InRemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
 
 	virtual bool Send(proto::INetObject& Packet, EReliability InReliability = Unreliable) override;
-	bool Send(serialization::WriteStream& Stream, EReliability InReliability = Unreliable) override;
+	virtual bool Send(serialization::WriteStream& Stream, EReliability InReliability = Unreliable, bool IsResend = false) override;
 	bool Send(unsigned char* Data, std::size_t Len);
 	virtual const unsigned char* GetData() override;
 
@@ -40,11 +41,12 @@ public:
 	bool IsServer() const;
 
 	Error Update(TimeMs timeDelta);
-private:
 
+protected:
 	void AckPacketSent(uint16_t InPacketId);
 	void Resend(uint16_t InPacketId);
 	bool Flush();
+	uint16_t OnPacketSent(serialization::WriteStream& InStream, EReliability InReliability = Unreliable);
 	void OnPacketReceived(serialization::ReadStream& Stream);
 
 	const TimeMs ConnectionTimeoutSec;

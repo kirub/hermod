@@ -17,6 +17,8 @@ namespace serialization
         ReadStream(unsigned char* InBuffer, int InSizeInBytes, Deleter InDeleter);
         virtual ~ReadStream();
 
+        ReadStream Shift(std::size_t Offset);
+
         virtual void Reset() override;
         virtual void AdjustSize(int InNumBytes) override;
         virtual const uint8_t* GetData() override;

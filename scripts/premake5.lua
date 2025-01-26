@@ -55,7 +55,7 @@ project "tests"
 	links { "hermod", "gtest", "gtest_main" }
 
 	filter "configurations:Debug"
-		defines { "DEBUG" }
+		defines { "DEBUG", "WITH_TESTS=1" }
 		symbols "On"	
 		postbuildcommands {
 			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod-d.dll %[%{!cfg.targetdir}]",
@@ -64,7 +64,7 @@ project "tests"
 		}
 
 	filter "configurations:Release"
-		defines { "NDEBUG" }
+		defines { "NDEBUG", "WITH_TESTS=1" }
 		optimize "On"
 		postbuildcommands {
 			"{COPYFILE} ../libs/%{cfg.buildcfg}/hermod.dll %[%{!cfg.targetdir}]",

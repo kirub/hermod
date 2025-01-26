@@ -42,6 +42,12 @@ namespace serialization
         BitsRead = 0;
     }
 
+
+    ReadStream ReadStream::Shift(std::size_t Offset)
+    {
+        return { (unsigned char*)Reader.GetData() + Offset, Reader.GetTotalBytes() - (int)Offset };
+    }
+
     void ReadStream::AdjustSize(int InNumBytes) 
     {
         Reader.SetSize(InNumBytes);
