@@ -2,6 +2,7 @@
 
 #include "ProtocolInterface.h"
 #include <hermod/platform/Platform.h>
+#include <memory>
 
 namespace serialization
 {
@@ -24,12 +25,12 @@ public:
 	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream) override;
 	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
 	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
-	virtual void OnPacketAcked(const IProtocol::OnPacketAckedCallbackType& Callback) override;
+	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
 
 	virtual const int Size() const;
 
 	
-private:
+protected:
 
 	enum SequenceIdType
 	{
@@ -62,10 +63,10 @@ private:
 	bool CheckPacket(const uint16_t InPacketId, SequenceIdType InSeqType) const;
 	UINT32 ComputeAckBitfield(const uint16_t LastRemoteSequenceId) const;
 	UINT32 ComputeAckBitfield2(const uint16_t ReferenceSequenceId) const;
+	void TriggerPacketLost(uint16_t PacketSequenceId) const;
 
-	void AckPacket(const uint16_t InAckedPacket);
-	void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
-	void CachePacket2(uint16_t NewSequenceId, SequenceIdType InSeqType);
+	virtual void AckPacket(const uint16_t InAckedPacket);
+	virtual void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
 
 	OnPacketLostCallbackType OnPacketLostCallback;
 	OnPacketAckedCallbackType OnPacketAckedCallback;

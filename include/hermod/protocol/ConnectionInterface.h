@@ -34,7 +34,7 @@ public:
 
 	}
 
-	virtual bool Send(serialization::WriteStream& Packet, EReliability InReliability = Unreliable) = 0;
+	virtual bool Send(serialization::WriteStream& Packet, EReliability InReliability = Unreliable, bool IsResend = false) = 0;
 	virtual bool Send(proto::INetObject& Packet, EReliability InReliability = Unreliable) = 0;
 	virtual bool Send(unsigned char* Data, std::size_t Len) = 0;
 	virtual const unsigned char* GetData() = 0;

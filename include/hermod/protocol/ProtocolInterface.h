@@ -3,6 +3,7 @@
 #include <hermod/platform/Platform.h>
 #include <hermod/serialization/WriteStream.h>
 #include <cstdint>
+#include <functional>
 
 namespace serialization
 {
@@ -19,17 +20,17 @@ public:
 		: Callback(InCallback)
 	{ }
 
-	ReturnType operator()(TArgs... Args)
+	ReturnType operator()(TArgs... Args) const
 	{
 		Call(Args...);
 	}
 
-	virtual ReturnType Call(TArgs... Args)
+	virtual ReturnType Call(TArgs... Args) const
 	{
 		return Callback(Args...);
 	}
 
-	bool IsValid() const
+	virtual bool IsValid() const
 	{
 		return Callback != nullptr;
 	}
@@ -42,12 +43,14 @@ public:
 protected:
 	CallbackType Callback;
 };
-
-template < typename OwnerType, typename ReturnType, typename... TArgs>
+/*
+template < typename InOwnerType, typename InReturnType, typename... TArgs>
 class CallableWithOwner
-	: public Callable<ReturnType, TArgs...>
+	: public Callable<InReturnType, TArgs...>
 {
 public:
+	using OwnerType = InOwnerType;
+	using ReturnType = InReturnType;
 	using CallbackTypeWithOwner = ReturnType(OwnerType::*)(TArgs...);
 
 	CallableWithOwner(OwnerType& InOwner, CallbackTypeWithOwner InCallback)
@@ -56,23 +59,28 @@ public:
 		, CallbackWithOwner(InCallback)
 	{ }
 
-	virtual ReturnType Call(TArgs... Args)
+	virtual ReturnType Call(TArgs... Args) const
 	{
 		return (Owner.*CallbackWithOwner)(Args...);
+	}
+
+	virtual bool IsValid() const
+	{
+		return CallbackWithOwner != nullptr;
 	}
 private:
 
 	OwnerType& Owner;
 	CallbackTypeWithOwner CallbackWithOwner;
 };
-
+*/
 class HERMOD_API IProtocol
 {
 public:
 	static const uint16_t InvalidSequenceId;
 
-	using OnPacketAckedCallbackType = Callable<void, uint16_t>;
-	using OnPacketLostCallbackType = Callable<void, uint16_t>;
+	using OnPacketAckedCallbackType = std::function<void(uint16_t)>;
+	using OnPacketLostCallbackType = std::function<void(uint16_t)>;
 
 	virtual bool WriteHeader(unsigned char* Data, int Len) = 0;
 	virtual bool CheckHeader(const unsigned char*& Data, int& Len) = 0;

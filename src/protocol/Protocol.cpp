@@ -483,11 +483,7 @@ void Protocol::CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType)
 		// Means there was a packet here before that we are evicting from history
 		if (EvictedSequenceId != InvalidSequenceId)
 		{
-			printf(__FUNCTION__ ": Packet %u lost\n", EvictedSequenceId);
-			if (OnPacketLostCallback)
-			{
-				OnPacketLostCallback(EvictedSequenceId);
-			}
+			TriggerPacketLost(EvictedSequenceId);
 		}
 		NotAckedPackets[IndexJustSentPacketInAckedPacket] = NewSequenceId;
 	}
@@ -496,14 +492,13 @@ void Protocol::CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType)
 	NextSequenceIdx = GetNextSequenceIdx(InSeqType);
 }
 
-
-void Protocol::CachePacket2(uint16_t NewSequenceId, SequenceIdType InSeqType)
+void Protocol::TriggerPacketLost(uint16_t PacketSequenceId) const
 {
-	UINT8& NextSequenceIdx = InSeqType == Local ? NextLocalSequenceIdx : NextRemoteSequenceIdx;
-	uint16_t* History = InSeqType == Local ? LocalSequenceIdHistory : RemoteSequenceIdHistory;
-
-	const int Index = NewSequenceId % HistorySize;
-	History[Index] = NewSequenceId;
+	printf(__FUNCTION__ ": Packet %u lost\n", PacketSequenceId);
+	if (OnPacketLostCallback)
+	{
+		OnPacketLostCallback(PacketSequenceId);
+	}
 }
 
 const int Protocol::Size() const

@@ -20,6 +20,7 @@ namespace serialization
 
         virtual ~WriteStream();
         void Clear();
+        WriteStream Shift(std::size_t Offset);
         virtual void Reset();
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;

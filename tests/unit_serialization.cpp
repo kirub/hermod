@@ -1,5 +1,5 @@
+#include "Vector2f.h"
 
-#include "unit_serialization.h"
 #include <hermod/platform/Platform.h>
 #include <hermod/socket/UDPSocket.h>
 #include <hermod/socket/Address.h>
@@ -8,7 +8,6 @@
 #include <hermod/replication/NetProperty.h>
 #include <hermod/serialization/WriteStream.h>
 #include <hermod/serialization/ReadStream.h>
-#include "Vector2f.h"
 
 #include <gtest/gtest.h>
 #include <hermod/serialization/FakeWriteStream.h>

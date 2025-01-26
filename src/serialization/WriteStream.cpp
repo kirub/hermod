@@ -40,13 +40,20 @@ namespace serialization
         {
             DeleterFunc = [](unsigned char* Ptr) { delete[] Ptr; };
         }
-        else if(NeedsRealloc)
+        else if (NeedsRealloc)
         {
             delete[] Data;
+        }
+
+        if (NeedsRealloc)
+        {
+            unsigned char* NewBuffer = new unsigned char[SizeInBytes];
+            memcpy(NewBuffer, Rhs.Writer.GetData(), SizeInBytes);
             Writer.Reset(
-                new unsigned char[SizeInBytes],
+                NewBuffer,
                 SizeInBytes
             );
+
         }
         Error = PROTO_ERROR_NONE;
         return *this;
@@ -58,6 +65,11 @@ namespace serialization
         {
             delete[] Data;
         }
+    }
+
+    WriteStream WriteStream::Shift(std::size_t Offset)
+    {
+        return { (unsigned char*)Writer.GetData() + Offset, Writer.GetTotalBytes() - (int)Offset };
     }
 
     bool WriteStream::IsValid() const

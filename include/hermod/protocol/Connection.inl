@@ -7,14 +7,14 @@
 
 #include <iostream>
 
-template < TSocket SocketType>
-Connection<SocketType>::Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs)
+template < TSocket SocketType, TProtocol ProtocolType>
+Connection<SocketType, ProtocolType>::Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs)
     : Connection(Address(), InboundPort, InConnectionTimeoutMs)
 {
 }
 
-template < TSocket SocketType>
-Connection<SocketType>::Connection(Address RemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs)
+template < TSocket SocketType, TProtocol ProtocolType>
+Connection<SocketType, ProtocolType>::Connection(Address RemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs)
     : Socket(std::make_unique<SocketType>(InboundPort))
     , ConnectionTimeoutSec(InConnectionTimeoutMs)
     , LastPacketReceiveTimeout(InConnectionTimeoutMs)
@@ -22,38 +22,44 @@ Connection<SocketType>::Connection(Address RemoteEndpoint, unsigned short Inboun
     , IsServerConnection(!RemoteEndpoint)
     , Writer(MaxMTUSize)
     , Reader(MaxMTUSize)
-    , MyProtocol(std::make_unique<Protocol>(DefaultProtocolId))
+    , MyProtocol(std::make_unique<ProtocolType>(DefaultProtocolId))
     , PacketsSent()
 {
-    MyProtocol->OnPacketAcked(CallableWithOwner< Connection<SocketType>, void, uint16_t >(*this, &Connection<SocketType>::AckPacketSent));
-    MyProtocol->OnPacketLost(CallableWithOwner< Connection<SocketType>, void, uint16_t >(*this, &Connection<SocketType>::Resend));
+    MyProtocol->OnPacketAcked([this](uint16_t InSequenceId) { AckPacketSent(InSequenceId); });
+    MyProtocol->OnPacketLost([this](uint16_t InSequenceId) { Resend(InSequenceId); });
 }
 
-template < TSocket SocketType>
-void Connection<SocketType>::Resend(uint16_t InPacketId)
+template < TSocket SocketType, TProtocol ProtocolType>
+void Connection<SocketType, ProtocolType>::Resend(uint16_t InPacketId)
 {
     const int Index = InPacketId % PacketSentHistorySize;
     if (serialization::WriteStream ResendBuffer = PacketsSent[Index])
     {
-        Send(ResendBuffer, Unreliable);
+        Writer.Reset();
+
+        MyProtocol->Serialize(Writer);
+        memcpy((void*)Writer.GetData(), ResendBuffer.GetData(), ResendBuffer.GetDataSize() );
+
+        constexpr bool IsResend = true;
+        Send(Writer, Reliable, IsResend);
     }
 }
 
-template < TSocket SocketType>
-void Connection<SocketType>::AckPacketSent(uint16_t InPacketId)
+template < TSocket SocketType, TProtocol ProtocolType>
+void Connection<SocketType, ProtocolType>::AckPacketSent(uint16_t InPacketId)
 {
     const int Index = InPacketId % PacketSentHistorySize;
     PacketsSent[Index].Clear();
 }
 
-template < TSocket SocketType>
-const unsigned char* Connection<SocketType>::GetData()
+template < TSocket SocketType, TProtocol ProtocolType>
+const unsigned char* Connection<SocketType, ProtocolType>::GetData()
 {
     return Reader.GetData() + MyProtocol->Size();
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::Send(proto::INetObject& Packet, EReliability InReliability)
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::Send(proto::INetObject& Packet, EReliability InReliability /*= Unreliable*/)
 {
     if (!IsConnected())
     {
@@ -63,7 +69,7 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet, EReliability InReli
 
     serialization::WriteStream BunchWriter(MaxStreamSize);
     uint32_t NetObjectClassId = Packet.GetClassId();
-    bool HasError = !(BunchWriter.Serialize(NetObjectClassId) && Packet.SerializeProperties(BunchWriter));
+    bool HasError = !(BunchWriter.Serialize(NetObjectClassId) && Packet.Serialize(BunchWriter));
     BunchWriter.EndWrite();
 
     if (!HasError)
@@ -101,27 +107,35 @@ bool Connection<SocketType>::Send(proto::INetObject& Packet, EReliability InReli
     return !HasError;
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::Send(serialization::WriteStream& Stream, EReliability InReliability)
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::Send(serialization::WriteStream& Stream, EReliability InReliability /*= Unreliable*/, bool IsResend /*= false*/)
 {
-    if (Socket->Send(Writer, RemoteEndpoint))
+    if (Socket->Send(Stream, RemoteEndpoint))
     {
-        uint16_t PacketSequenceId = MyProtocol->OnPacketSent(Writer);
-        if (InReliability == Reliable)
-        {
-            const int Index = PacketSequenceId % PacketSentHistorySize;
-            PacketsSent[Index] = Writer;
-        }
-
+        OnPacketSent(Stream, InReliability);
         return true;
     }
 
     return false;
 }
 
+template < TSocket SocketType, TProtocol ProtocolType>
+uint16_t Connection<SocketType, ProtocolType>::OnPacketSent(serialization::WriteStream& InStream, EReliability InReliability)
+{
+    uint16_t PacketSequenceId = MyProtocol->OnPacketSent(InStream);
+#if WITH_TESTS
+    LastSentPacketId = PacketSequenceId;
+#endif
+    if (InReliability == Reliable)
+    {
+        const int Index = PacketSequenceId % PacketSentHistorySize;
+        PacketsSent[Index] = InStream.Shift(ProtocolHeaderSizeLessId);
+    }
+    return PacketSequenceId;
+}
 
-template < TSocket SocketType>
-void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStream)
+template < TSocket SocketType, TProtocol ProtocolType>
+void Connection<SocketType, ProtocolType>::OnPacketReceived(serialization::ReadStream& InStream)
 {
     // Try handle packet
     bool HasError = false;
@@ -164,8 +178,8 @@ void Connection<SocketType>::OnPacketReceived(serialization::ReadStream& InStrea
 
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::Send(unsigned char* Data, std::size_t Len)
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::Send(unsigned char* Data, std::size_t Len)
 {
     if (!IsConnected())
     {
@@ -190,8 +204,8 @@ bool Connection<SocketType>::Send(unsigned char* Data, std::size_t Len)
     return false;
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::Flush()
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::Flush()
 {
     if (!IsConnected())
     {
@@ -206,26 +220,26 @@ bool Connection<SocketType>::Flush()
     return false;
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::IsConnected() const
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::IsConnected() const
 {
     return LastPacketReceiveTimeout >= 0;
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::IsClient() const
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::IsClient() const
 {
     return !IsServerConnection;
 }
 
-template < TSocket SocketType>
-bool Connection<SocketType>::IsServer() const
+template < TSocket SocketType, TProtocol ProtocolType>
+bool Connection<SocketType, ProtocolType>::IsServer() const
 {
     return IsServerConnection;
 }
 
-template < TSocket SocketType>
-IConnection::Error Connection<SocketType>::Update(TimeMs TimeDelta)
+template < TSocket SocketType, TProtocol ProtocolType>
+IConnection::Error Connection<SocketType, ProtocolType>::Update(TimeMs TimeDelta)
 {
     if (RemoteEndpoint)
     {

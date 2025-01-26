@@ -11,7 +11,8 @@ const unsigned int DefaultProtocolId = 666;
 const int MaxMTUSize = 1472;
 const int MaxFragmentSize = 1024;
 const int MaxStreamSize = 1024 * 64;
-const int ProtocolHeaderSize = 18;
+const int ProtocolHeaderSizeLessId = 12; // or 18?
+const int ProtocolHeaderSize = 16; // or 18?
 const int FragmentHeaderSize = 6;
 
 enum EReliability
