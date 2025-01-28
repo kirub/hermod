@@ -86,6 +86,7 @@ public:
 	virtual bool CheckHeader(const unsigned char*& Data, int& Len) = 0;
 	virtual bool Serialize(serialization::IStream& InStream) = 0;
 	virtual const int Size() const = 0;
+	virtual const int64_t GetRTT() const = 0;
 
 
 	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) { return InvalidSequenceId; }

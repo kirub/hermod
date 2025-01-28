@@ -14,6 +14,7 @@ Protocol::Protocol(unsigned int InId)
 	, NotAckedPackets()
 	, OnPacketAckedCallback(nullptr)
 	, OnPacketLostCallback(nullptr)
+	, CurrentRTT(0)
 {
 	memset(RemoteSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
 	memset(LocalSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
@@ -428,12 +429,31 @@ bool Protocol::CheckPacket(const uint16_t InSequenceId, SequenceIdType InSeqType
 void Protocol::AckPacket(const uint16_t InAckedPacket)
 {
 	const int Index = InAckedPacket % HistorySize;
-	NotAckedPackets[Index] = InvalidSequenceId;
+	ReportRTT(NotAckedPackets[Index].RTT());
+	NotAckedPackets[Index].Reset();
 
 	if (OnPacketAckedCallback)
 	{
 		OnPacketAckedCallback(InAckedPacket);
 	}
+}
+
+void Protocol::ReportRTT(const int64_t InRTT)
+{
+	if (InRTT > MaxRTT)
+	{
+		// Discard out of bounds values
+		return;
+	}
+
+	const int64_t RTTInc = (int64_t)((InRTT - CurrentRTT) * (RTTIncFactor / 100.0f));
+	CurrentRTT += RTTInc;
+}
+
+
+const int64_t Protocol::GetRTT() const
+{
+	return CurrentRTT;
 }
 
 bool Protocol::ReadAndAck(const unsigned char*& Data, int& Len)
@@ -479,7 +499,7 @@ void Protocol::CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType)
 	if (InSeqType == Local)
 	{
 		const int IndexJustSentPacketInAckedPacket = NewSequenceId % HistorySize;
-		UINT16 EvictedSequenceId = NotAckedPackets[IndexJustSentPacketInAckedPacket];
+		UINT16 EvictedSequenceId = NotAckedPackets[IndexJustSentPacketInAckedPacket].SequenceId;
 		// Means there was a packet here before that we are evicting from history
 		if (EvictedSequenceId != InvalidSequenceId)
 		{

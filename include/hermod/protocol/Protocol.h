@@ -3,6 +3,7 @@
 #include "ProtocolInterface.h"
 #include <hermod/platform/Platform.h>
 #include <memory>
+#include <chrono>
 
 namespace serialization
 {
@@ -27,7 +28,8 @@ public:
 	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
 	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
 
-	virtual const int Size() const;
+	virtual const int Size() const override;
+	virtual const int64_t GetRTT() const override;
 
 	
 protected:
@@ -40,6 +42,8 @@ protected:
 
 	static const UINT8 HistorySize = 33;
 	static const UINT8 InvalidSequenceIdx = 255;
+	static const int64_t MaxRTT = 1000;
+	static const uint8_t RTTIncFactor = 10;
 
 
 	bool WriteProtocolId(unsigned char*& Data, int& Len) const;
@@ -58,6 +62,7 @@ protected:
 	uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const;
 	uint16_t GetNextSequenceId(SequenceIdType InSeqIdType) const;
 
+	void ReportRTT(const int64_t InRTT);
 	bool ReadAndAck(const unsigned char*& Data, int& Len);
 	UINT8 FindPacket(const uint16_t InPacketId, SequenceIdType InSeqType, const UINT8 StartIdx = 0, const int Increment = 1) const;
 	bool CheckPacket(const uint16_t InPacketId, SequenceIdType InSeqType) const;
@@ -68,13 +73,45 @@ protected:
 	virtual void AckPacket(const uint16_t InAckedPacket);
 	virtual void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
 
+private:
+
+	struct PacketData
+	{
+		uint16_t SequenceId = InvalidSequenceId;
+		int64_t SendTime = -1;
+
+		static const int64_t Now()
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+
+		const int64_t RTT()
+		{
+			return (SendTime > -1) ? std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - SendTime : 0;
+		}
+
+		void Reset()
+		{
+			SequenceId = InvalidSequenceId;
+			SendTime = -1;
+		}
+
+		PacketData& operator=(uint16_t InSequenceId)
+		{
+			SequenceId = InSequenceId;
+			SendTime = InSequenceId == InvalidSequenceId ? -1 : Now();
+			return *this;
+		}
+	};
+
 	OnPacketLostCallbackType OnPacketLostCallback;
 	OnPacketAckedCallbackType OnPacketAckedCallback;
 
+	int64_t CurrentRTT;
 	unsigned int Id;
 	uint16_t LocalSequenceIdHistory[HistorySize];
 	uint16_t RemoteSequenceIdHistory[HistorySize];
-	uint16_t NotAckedPackets[HistorySize];
+	PacketData NotAckedPackets[HistorySize];
 	UINT8 NextLocalSequenceIdx;
 	UINT8 NextRemoteSequenceIdx;
 };

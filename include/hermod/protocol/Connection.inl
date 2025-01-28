@@ -187,9 +187,13 @@ bool Connection<SocketType, ProtocolType>::Send(unsigned char* Data, std::size_t
     Writer.Reset();
 
     MyProtocol->Serialize(Writer);
-    uint32_t PacketId = proto::INetObject::CustomDataId;
-    Writer.Serialize(PacketId); // Custom data with no packet type
-    Writer.Serialize(Data, serialization::NetPropertySettings<unsigned char*>(Len));
+
+    if (Len > 0)
+    {
+        uint32_t PacketId = proto::INetObject::CustomDataId;
+        Writer.Serialize(PacketId); // Custom data with no packet type
+        Writer.Serialize(Data, serialization::NetPropertySettings<unsigned char*>(Len));
+    }
 
     if (Socket->Send(Writer, RemoteEndpoint))
     {
@@ -279,9 +283,17 @@ IConnection::Error Connection<SocketType, ProtocolType>::Update(TimeMs TimeDelta
 
                 LastPacketReceiveTimeout = ConnectionTimeoutSec;
          
-                OnPacketReceived(Reader);
+                if (Reader.GetBytesRemaining() >= sizeof(uint32_t))
+                {
+                    OnPacketReceived(Reader);
 
-                assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream)
+                    // Ack this packet
+                    // TODO: Queue packets in case we send something useful while needing to ack packet
+                    Send(nullptr, 0);
+
+                    assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream)
+                }
+
             }
             Reader.Reset();
         }
