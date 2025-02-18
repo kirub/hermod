@@ -34,6 +34,18 @@ namespace serialization
         m_numBits = m_numBytes * 8;
     }
 
+    bool BitReader::FlushBits()
+    {
+        if (m_scratchBits != 0)
+        {
+            uint32_t value = ReadBits(m_scratchBits);
+            assert(m_bitsRead % 32 == 0);
+            return value == 0;
+        }
+
+        return true;
+    }
+
     bool BitReader::WouldOverflow(int bits) const
     {
         return m_bitsRead + bits > m_numBits;

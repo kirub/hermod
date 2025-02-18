@@ -4,6 +4,7 @@
 #include "hermod/protocol/Protocol.h"
 #include "hermod/protocol/Protocol2.h"
 #include "hermod/protocol/FragmentHandler.h"
+#include "hermod/protocol/NetObjectQueue.h"
 
 #include <hermod/socket/UDPSocket.h>
 #include <hermod/socket/Address.h>
@@ -19,22 +20,26 @@ namespace proto
 	class FragmentHandler;
 }
 
-template < typename T> concept TSocket = std::derived_from<T, ISocket>;
-template < typename T> concept TProtocol = std::derived_from<T, IProtocol>;
-
 template < TSocket SocketType, TProtocol ProtocolType>
 class Connection
 	: public IConnection
 {
-public:	
+public:
+	using IConnection::Send;
 
 	Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
 	Connection(Address InRemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
+	virtual ~Connection();
 
-	virtual bool Send(proto::INetObject& Packet, EReliability InReliability = Unreliable) override;
-	virtual bool Send(serialization::WriteStream& Stream, EReliability InReliability = Unreliable, bool IsResend = false) override;
+	virtual bool Send(proto::NetObjectPtr InNetObject) override;
+	virtual bool Send(serialization::WriteStream& Stream) override;
+	virtual proto::NetObjectPtr Receive();
 	bool Send(unsigned char* Data, std::size_t Len);
 	virtual const unsigned char* GetData() override;
+	virtual proto::NetObjectQueue256& GetNetObjectQueue(ObjectQueueType InQueueType) override;
+	virtual void OnPacketReceived(serialization::ReadStream& InStream) override;
+
+	virtual class Address const & GetRemoteEndpoint() const override;
 
 	bool IsConnected() const;
 	bool IsClient() const;
@@ -43,11 +48,10 @@ public:
 	Error Update(TimeMs timeDelta);
 
 protected:
+	void OnMessageReceived(serialization::ReadStream& Stream, uint8_t NetObjectOrderId = 255, uint8_t NetObjectIdSpaceCount = 1);
 	void AckPacketSent(uint16_t InPacketId);
 	void Resend(uint16_t InPacketId);
 	bool Flush();
-	uint16_t OnPacketSent(serialization::WriteStream& InStream, EReliability InReliability = Unreliable);
-	void OnPacketReceived(serialization::ReadStream& Stream);
 
 	const TimeMs ConnectionTimeoutSec;
 	TimeMs LastPacketReceiveTimeout;
@@ -58,6 +62,7 @@ protected:
 	std::unique_ptr<ISocket> Socket;
 	std::unique_ptr<IProtocol> MyProtocol;
 	proto::FragmentHandler Fragments;
+	proto::NetObjectQueue256 NetObjectQueues[ObjectQueueType::Count];
 
 	static const int PacketSentHistorySize = 64;
 	serialization::WriteStream PacketsSent[PacketSentHistorySize];

@@ -47,9 +47,18 @@ public:
 	{
 		ReceiveObjectCallback = InReceiveObjectCallback;
 	}
+	void SetId(int InConnectionId)
+	{
+		ConnectionId = InConnectionId;
+	}
+	int GetId() const
+	{
+		return ConnectionId;
+	}
 
 protected:
 
 	OnReceiveDataFunctor ReceiveDataCallback;
 	OnReceiveObjectFunctor ReceiveObjectCallback;
+	int ConnectionId;
 };

@@ -2,8 +2,6 @@
 
 #include <hermod/serialization/NetTypeTraits.h>
 #include <hermod/serialization/NetIdMapping.h>
-#include <hermod/utilities/Utils.h>
-#include <hermod/utilities/Types.h>
 
 #include <cassert>
 #include <cstdint>
@@ -15,6 +13,8 @@
 
 namespace serialization
 {
+    class NetObjectSerializationCache;
+
 	class HERMOD_API IStream
 	{
 
@@ -54,9 +54,10 @@ namespace serialization
         bool IsReading() const;
         std::string Operation() const;
 
+        bool InsertObjectBuffer(NetObjectDataPtr NetObjectData);
         bool Align(uint32_t AlignToBits = 8);
         bool Guard(const char* InString);
-        virtual void EndWrite();
+        virtual bool Flush() = 0;
 
 
         template < typename ValueType >

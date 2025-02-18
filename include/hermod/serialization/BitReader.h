@@ -13,6 +13,7 @@ namespace serialization
 
         BitReader(const void* data, int bytes);
         void Reset();
+        bool FlushBits();
 
         bool WouldOverflow(int bits) const;
 

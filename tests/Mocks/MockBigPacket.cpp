@@ -1,6 +1,9 @@
 #include "MockBigPacket.h"
 
-
+MockBigPacket::MockBigPacket()
+    : MockBigPacket(0)
+{
+}
 MockBigPacket::MockBigPacket(int NumberOfFragments, Filling FillWithData /*= Filled*/)
     : NumberOfFrags(NumberOfFragments)
     , bufferSize(0)
@@ -34,7 +37,8 @@ void MockBigPacket::Init(int NumberOfFragments)
     if (NumberOfFragments > 0)
     {
         NumberOfFrags = NumberOfFragments;
-        bufferSize = (MaxFragmentSize - ProtocolHeaderSize) + (NumberOfFragments - 1) * MaxFragmentSize; // because we want exactly 2 fragments and serialize packets have a packet id (uint32_t) overhead + raw buffer has a 2 bytes overhead
+        //bufferSize = (MaxFragmentSize - ProtocolHeaderSize) + (NumberOfFragments - 1) * MaxFragmentSize; // because we want exactly 2 fragments and serialize packets have a packet id (uint32_t) overhead + raw buffer has a 2 bytes overhead
+        bufferSize = (NumberOfFragments * MaxFragmentSize) - ProtocolHeaderSize;
         InitBuffer(bufferSize);
     }
 }

@@ -9,25 +9,18 @@
 
 class IConnection;
 
-namespace serialization
-{
-    class IStream;
-    class ReadStream;
-    class WriteStream;
-}
-
 namespace proto
 {
-    class INetObject;
     class INetProperty;
+    class INetObject;
 }
 
 class NetObjectManager
 {
     NetObjectManager() = default;
 public:
-    using NetObjectType = proto::INetObject*;
-    using ObjectConstructor = std::function<NetObjectType()>;
+    using NetObjectType = std::shared_ptr<proto::INetObject>;
+    using ObjectConstructor = std::function<proto::INetObject*()>;
     template < std::derived_from<proto::INetProperty> T>
     using PropertyListenerWithT = std::function<void(const T&)>;
     using PropertyListener = std::function<void(const proto::INetProperty&)>;

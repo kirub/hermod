@@ -20,10 +20,23 @@ public:
     Vector2f();
 
     Vector2f(float InX, float InY);
+    Vector2f(const Vector2f&);
+
+    Vector2f& operator=(const Vector2f&);
 
     bool operator==(const Vector2f& Rhs) const
     {
         return X == Rhs.X && Y == Rhs.Y;
+    }
+
+    float GetX() const
+    {
+        return X;
+    }
+
+    float GetY() const
+    {
+        return Y;
     }
 
 private:

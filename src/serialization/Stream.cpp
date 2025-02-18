@@ -1,5 +1,6 @@
 #include <hermod/serialization/Stream.h>
 #include <hermod/serialization/NetIdMapping.h>
+#include <hermod/serialization/NetObjectSerializationCache.h>
 #include <string.h>
 
 namespace serialization
@@ -11,6 +12,16 @@ namespace serialization
     void Reset()
     {
 
+    }
+
+    bool IStream::InsertObjectBuffer(NetObjectDataPtr NetObjectData)
+    {
+        if (NetObjectData && *NetObjectData)
+        {
+            return SerializeBytes((uint8_t*)NetObjectData->Buffer, (int)NetObjectData->BufferSize);
+        }
+
+        return false;
     }
 
     bool IStream::IsWriting() const { return OpType == Writing; }
@@ -27,8 +38,6 @@ namespace serialization
     {
         return SerializeAlign(AlignToBits);
     }
-
-    void IStream::EndWrite() {}
 
     const uint8_t* IStream::GetData() { return nullptr; };
     int IStream::GetDataSize() const { return 0; }

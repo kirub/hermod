@@ -13,8 +13,8 @@ namespace proto
 	{
 		uint8_t NumFragments;
 
-		using FragmentPtr = std::shared_ptr<Fragment>;
-		using FragmentContainer = std::deque<FragmentPtr>;
+		using FragmentPtr = Fragment*;
+		using FragmentContainer = std::vector<FragmentPtr>;
 		const int Index(uint16_t Sequence) const;
 
 	public:
@@ -32,8 +32,6 @@ namespace proto
 
 		FragmentHandler();
 		FragmentHandler(serialization::WriteStream& Stream, const std::size_t& MaxFragmentSize);
-		FragmentHandler(unsigned char* InBuffer, int BufferSize, const std::size_t& MaxFragmentSize);
-		FragmentHandler(proto::INetObject& InNetObject, const int BufferSize, const std::size_t& MaxFragmentSize);
 
 		serialization::ReadStream Gather();
 

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <concepts>
 #include <limits>
+#include <memory>
 
 typedef double TimeMs;
 
@@ -11,9 +12,24 @@ const unsigned int DefaultProtocolId = 666;
 const int MaxMTUSize = 1472;
 const int MaxFragmentSize = 1024;
 const int MaxStreamSize = 1024 * 64;
+const int MaxNetObjectQueueSize = 256;
 const int ProtocolHeaderSizeLessId = 12; // or 18?
 const int ProtocolHeaderSize = 16; // or 18?
 const int FragmentHeaderSize = 6;
+
+namespace serialization
+{
+	typedef std::shared_ptr<struct NetObjectData> NetObjectDataPtr;
+}
+
+namespace proto
+{
+	typedef class NetObjectQueue NetObjectQueue256;
+}
+
+
+template < typename T> concept TSocket = std::derived_from<T, class ISocket>;
+template < typename T> concept TProtocol = std::derived_from<T, class IProtocol>;
 
 enum EReliability
 {

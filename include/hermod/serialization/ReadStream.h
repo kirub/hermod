@@ -23,6 +23,7 @@ namespace serialization
         virtual void AdjustSize(int InNumBytes) override;
         virtual const uint8_t* GetData() override;
         virtual int GetDataSize() const override;
+        virtual bool Flush() override;
 
         virtual bool WouldOverflow(int bits) const override;
 

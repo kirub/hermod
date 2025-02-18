@@ -10,24 +10,23 @@ namespace serialization
 	class IStream;
 }
 
-template < typename ReturnType, typename... TArgs>
-class Callable
+template<typename Signature>
+class callable;
+
+template < typename R, typename... TArgs>
+class callable<R(TArgs...)>
 {
 public:
-	using CallbackType = ReturnType(*)(TArgs...);
+	using return_type = R;
+	using signature = R(TArgs...);
 
-	Callable(CallbackType InCallback)
-		: Callback(InCallback)
+	callable()
+		: Callback(nullptr)
 	{ }
 
-	ReturnType operator()(TArgs... Args) const
+	return_type operator()(TArgs... params) const
 	{
-		Call(Args...);
-	}
-
-	virtual ReturnType Call(TArgs... Args) const
-	{
-		return Callback(Args...);
+		Callback(params...);
 	}
 
 	virtual bool IsValid() const
@@ -41,7 +40,7 @@ public:
 	}
 
 protected:
-	CallbackType Callback;
+	signature Callback;
 };
 /*
 template < typename InOwnerType, typename InReturnType, typename... TArgs>
@@ -78,6 +77,11 @@ class HERMOD_API IProtocol
 {
 public:
 	static const uint16_t InvalidSequenceId;
+	enum SequenceIdType
+	{
+		Local,
+		Remote
+	};
 
 	using OnPacketAckedCallbackType = std::function<void(uint16_t)>;
 	using OnPacketLostCallbackType = std::function<void(uint16_t)>;
@@ -85,12 +89,15 @@ public:
 	virtual bool WriteHeader(unsigned char* Data, int Len) = 0;
 	virtual bool CheckHeader(const unsigned char*& Data, int& Len) = 0;
 	virtual bool Serialize(serialization::IStream& InStream) = 0;
+	virtual uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const = 0;
 	virtual const int Size() const = 0;
 	virtual const int64_t GetRTT() const = 0;
 
+	virtual bool HasPacketReliability() const { return false; }
+
 
 	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) { return InvalidSequenceId; }
-	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream) { return InvalidSequenceId; };
+	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId) { return InvalidSequenceId; };
 	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) = 0;
 	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) {};
 	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) {}

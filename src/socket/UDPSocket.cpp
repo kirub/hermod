@@ -10,8 +10,7 @@ UDPSocket::UDPSocket()
 }
 
 UDPSocket::UDPSocket(unsigned short port)
-	: Handle(0)
-	, Af(AF_UNSPEC)
+	: Af(AF_INET)
 {
 	if (!Create(AF_INET, SOCK_DGRAM, IPPROTO_UDP))
 	{

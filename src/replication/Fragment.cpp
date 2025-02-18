@@ -9,13 +9,18 @@ namespace proto
 	}
 
 	Fragment::Fragment(uint8_t InFragmentId, uint8_t InFragmentCount, unsigned char* InFragmentData, const std::size_t InFragmentSize)
+		: Fragment(InFragmentId, InFragmentCount, InFragmentData, InFragmentSize, false)
+	{
+	}
+
+	Fragment::Fragment(uint8_t InFragmentId, uint8_t InFragmentCount, unsigned char* InFragmentData, const std::size_t InFragmentSize, bool StealData)
 		: INetObject(INetObject::Fragment)
 		, Id(InFragmentId)
 		, Count(InFragmentCount)
-		, Data(new unsigned char[InFragmentSize])
+		, Data(StealData ? InFragmentData : new unsigned char[InFragmentSize])
 		, DataSize(InFragmentSize)
 	{
-		if (InFragmentData)
+		if (!StealData && InFragmentData)
 		{
 			memcpy(Data, InFragmentData, InFragmentSize);
 		}
@@ -24,7 +29,10 @@ namespace proto
 
 	Fragment::~Fragment()
 	{
-		delete[] Data;
+		if (Data && DataSize)
+		{
+			delete[] Data;
+		}
 	}
 
 	bool Fragment::SerializeImpl(serialization::IStream& Stream)

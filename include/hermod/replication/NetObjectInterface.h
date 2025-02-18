@@ -4,7 +4,6 @@
 #include <hermod/serialization/Stream.h>
 #include <hermod/replication/PropertyTypes.h>
 #include <hermod/replication/NetObjectManager.h>
-#include <hermod/replication/NetProperty.h>
 #include <hermod/utilities/Utils.h>
 #include <hermod/utilities/Types.h>
 
@@ -19,7 +18,7 @@
 namespace proto
 {
 	class INetProperty;
-
+	typedef std::shared_ptr<class INetObject> NetObjectPtr;
 
 class HERMOD_API INetObject
 {
@@ -48,22 +47,27 @@ public:
 	void AddProperty(INetProperty& Property);
 	void RemoveProperty(INetProperty& Property);
 
+	NetObjectId GetId() const;
+	bool IsDirty() const;
+	void SetDirty(bool InDirtyFlag, bool SetAllProperty = false);
+
 	virtual void OnReceived() {}
 private:
 	virtual bool SerializeImpl(serialization::IStream& Stream);
 
 #pragma warning(push)
 #pragma warning(disable : 4251)
-	NetProperty<NetObjectId>	NetId;
+	NetObjectId					NetId;
 	PropertiesContainer			Properties;
 #pragma warning(pop)
+	ENetObjectType				NetObjectType;
+	bool						IsDirtyFlag;
 }; 
 
 class INetRPC
 	: public INetObject
 {
 public:
-	static uint32_t Id;
 
 	INetRPC();
 
@@ -74,7 +78,7 @@ private:
 
 	}
 
-	NetProperty<uint32_t> Hash;
+	uint32_t Hash;
 };
 
 }

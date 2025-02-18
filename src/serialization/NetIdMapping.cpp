@@ -26,7 +26,7 @@ namespace serialization
         return ItElement->second;
     }
 
-    NetObjectManager::NetObjectType NetIdMapping::GetObjectFromNetId(ObjectIdToInstanceContainer::key_type Value) const
+    NetIdMapping::NetObjectType NetIdMapping::GetObjectFromNetId(ObjectIdToInstanceContainer::key_type Value) const
     {
         if (ObjectIdToInstanceContainer::const_iterator ItElement = IdToObjectMap.find(Value); ItElement != IdToObjectMap.end())
         {

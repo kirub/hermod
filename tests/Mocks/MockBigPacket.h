@@ -16,6 +16,7 @@ public:
         LastPacketHalf
     };
 
+    MockBigPacket();
     MockBigPacket(int NumberOfFragments, Filling FillWithData = Filled);
     MockBigPacket(const MockBigPacket& ToCopy);
 

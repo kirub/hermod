@@ -23,22 +23,19 @@ public:
 	virtual bool Serialize(serialization::IStream& InStream) override;
 
 	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) override;
-	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream) override;
+	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId) override;
 	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
 	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
 	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
 
+	virtual uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const override;
 	virtual const int Size() const override;
 	virtual const int64_t GetRTT() const override;
 
+	virtual bool HasPacketReliability() const override { return true; }
 	
 protected:
 
-	enum SequenceIdType
-	{
-		Local,
-		Remote
-	};
 
 	static const UINT8 HistorySize = 33;
 	static const UINT8 InvalidSequenceIdx = 255;
@@ -59,7 +56,6 @@ protected:
 	UINT8 GetLatestSequenceIdx( SequenceIdType InSeqIdType ) const;
 	UINT8 GetNextSequenceIdx(SequenceIdType InSeqIdType) const;
 
-	uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const;
 	uint16_t GetNextSequenceId(SequenceIdType InSeqIdType) const;
 
 	void ReportRTT(const int64_t InRTT);
@@ -80,14 +76,9 @@ private:
 		uint16_t SequenceId = InvalidSequenceId;
 		int64_t SendTime = -1;
 
-		static const int64_t Now()
-		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
-
 		const int64_t RTT()
 		{
-			return (SendTime > -1) ? std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - SendTime : 0;
+			return (SendTime > -1) ? utils::Time::NowMs() - SendTime : 0;
 		}
 
 		void Reset()
@@ -99,7 +90,7 @@ private:
 		PacketData& operator=(uint16_t InSequenceId)
 		{
 			SequenceId = InSequenceId;
-			SendTime = InSequenceId == InvalidSequenceId ? -1 : Now();
+			SendTime = InSequenceId == InvalidSequenceId ? -1 : utils::Time::NowMs();
 			return *this;
 		}
 	};

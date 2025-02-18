@@ -23,7 +23,6 @@ private:
 
 	bool Bind(unsigned short port = 0);
 
-	SOCKET Handle;
 	int Af;
 
 };

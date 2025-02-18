@@ -8,11 +8,7 @@ namespace serialization
     bool FakeWriteStream::SimulateBitpacker = true;
 
     FakeWriteStream::FakeWriteStream()
-        : IStream(Writing)
-        , SizeMax(0)
-        , CurrentSizeInBits(0)
-        , Error(PROTO_ERROR_NONE)
-        , AccumulatedBits(0)
+        : FakeWriteStream(0)
     {
     }
 
@@ -122,16 +118,15 @@ namespace serialization
         return true;
     }
 
-    void FakeWriteStream::Flush()
+    bool FakeWriteStream::Flush()
     {
-        CurrentSizeInBits += AccumulatedBits;
-        AccumulatedBits = 0;
-    }
-    
-    void FakeWriteStream::EndWrite()
-    {
-        Flush();
-    }
+        if (AccumulatedBits > 0)
+        {
+            CurrentSizeInBits += 32;
+            AccumulatedBits = 0;
+        }
+        return true;
+    }    
 
     bool FakeWriteStream::WouldOverflow(int bytes) const
     {

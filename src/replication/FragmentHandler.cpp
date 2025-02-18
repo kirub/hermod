@@ -12,11 +12,7 @@ namespace proto
 
 	void FragmentHandler::Reset()
 	{
-		NumFragments = 0;
-		for (FragmentPtr Frag : Entries)
-		{
-			delete Frag;
-		}
+		NumFragments = 0;		
 		Entries.clear();
 	}
 
@@ -26,19 +22,64 @@ namespace proto
 	}
 
 	FragmentHandler::FragmentHandler(serialization::WriteStream& Stream, const std::size_t& MaxFragmentSize)
+		: NumFragments((uint8_t)((Stream.GetDataSize() / (int)MaxFragmentSize) + ((Stream.GetDataSize() % (int)MaxFragmentSize) == 0 ? 0 : 1)))
+		, Entries((std::size_t)NumFragments)
 	{
-		NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
-		NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
-		Entries.reserve(NumFragments);
+		//NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
+		//NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
+		//Entries.c.resize(NumFragments);
 		unsigned char* DataStart = (unsigned char*)Stream.GetData();
 		const int DataSize = Stream.GetDataSize();
 		std::size_t ProcessedBytes = 0;
 		for (int FragmentId = 0; FragmentId < NumFragments; ++FragmentId)
 		{
 			std::size_t NumBytesToCopy = std::min(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));
-			Entries.emplace_back(new Fragment((uint8_t)FragmentId, NumFragments, DataStart + ProcessedBytes, NumBytesToCopy));
+			Entries[FragmentId] = std::make_shared<Fragment>((uint8_t)FragmentId, NumFragments, DataStart + ProcessedBytes, NumBytesToCopy);
 			ProcessedBytes += NumBytesToCopy;
 		}
+	}
+	FragmentHandler::FragmentHandler(unsigned char* InBuffer, int BufferSize, const std::size_t& MaxFragmentSize)
+		: NumFragments((uint8_t)((BufferSize / (int)MaxFragmentSize) + ((BufferSize % (int)MaxFragmentSize) == 0 ? 0 : 1)))
+		, Entries((std::size_t)NumFragments)
+	{
+		//NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
+		//NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
+		//Entries.c.resize(NumFragments);
+		unsigned char* DataStart = InBuffer;
+		const int DataSize = BufferSize;
+		std::size_t ProcessedBytes = 0;
+		constexpr bool StealData = true;
+		for (int FragmentId = 0; FragmentId < NumFragments; ++FragmentId)
+		{
+			std::size_t NumBytesToCopy = std::min(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));
+			Entries[FragmentId] = std::make_shared<Fragment>((uint8_t)FragmentId, NumFragments, DataStart + ProcessedBytes, NumBytesToCopy, StealData);
+			ProcessedBytes += NumBytesToCopy;
+		}
+	}
+	FragmentHandler::FragmentHandler(proto::INetObject& InNetObject, const int DataSize, const std::size_t& MaxFragmentSize)
+		: NumFragments((uint8_t)((DataSize / (int)MaxFragmentSize) + ((DataSize % (int)MaxFragmentSize) == 0 ? 0 : 1)))
+		, Entries((std::size_t)NumFragments)
+	{
+		//NumFragments = (uint8_t) (Stream.GetDataSize() / MaxFragmentSize);
+		//NumFragments += ((Stream.GetDataSize() % MaxFragmentSize) == 0) ? 0 : 1;
+		//Entries.c.resize(NumFragments);
+
+		unsigned char* DataStart = new unsigned char[DataSize];
+		serialization::WriteStream Stream(DataStart, DataSize);
+		if (InNetObject.Serialize(Stream))
+		{
+			assert(Stream.Flush());
+			assert(Stream.GetDataSize() == DataSize);
+			std::size_t ProcessedBytes = 0;
+			constexpr bool StealData = false;
+			for (int FragmentId = 0; FragmentId < NumFragments; ++FragmentId)
+			{
+				std::size_t NumBytesToCopy = std::min(MaxFragmentSize, (std::size_t)(DataSize - ProcessedBytes));
+				Entries[FragmentId] = std::make_shared<Fragment>((uint8_t)FragmentId, NumFragments, DataStart + ProcessedBytes, NumBytesToCopy, StealData);
+				ProcessedBytes += NumBytesToCopy;
+			}
+		}
+		delete[] DataStart;
 	}
 
 	serialization::ReadStream FragmentHandler::Gather()
@@ -58,15 +99,13 @@ namespace proto
 
 	bool FragmentHandler::IsComplete() const
 	{
-		auto* start = Entries.data();
-		auto* end = start + NumFragments;
-		return std::find(start, end, nullptr) == end;
+		return std::find(Entries.begin(), Entries.end(), nullptr) == Entries.end();
 	}
 
 	void FragmentHandler::OnFragment(FragmentPtr InFragment)
 	{
 		assert(InFragment);
-		if (Entries.capacity() == 0)
+		if (Entries.empty())
 		{
 			Entries.resize(InFragment->Count);
 			NumFragments = InFragment->Count;
@@ -74,7 +113,7 @@ namespace proto
 		else
 		{
 			assert(NumFragments == InFragment->Count);
-			assert(Entries.capacity() == NumFragments);
+			assert(Entries.size() == NumFragments);
 		}
 		Entries[Index(InFragment->Id)] = InFragment;
 	}
