@@ -1,4 +1,5 @@
 #include <hermod/replication/NetObjectInterface.h>
+#include <hermod/replication/NetPropertyInterface.h>
 #include <hermod/utilities/Hash.h>
 #include <hermod/utilities/Types.h>
 #include <hermod/replication/NetObjectManager.h>
@@ -6,49 +7,41 @@
 
 namespace proto
 {
-	INetProperty::INetProperty()
-		: Dirty(true)
-	{
-	}
-
-	bool INetProperty::IsDirty() const
-	{
-		return Dirty;
-	}
-
-	void INetProperty::SetDirty(bool InDirtiness)
-	{
-		Dirty = InDirtiness;
-	}
-
-	bool INetProperty::Serialize(serialization::IStream& Stream)
-	{
-		bool HasError = false;
-		HasError = !Stream.Serialize(Dirty, serialization::NetPropertySettings<bool>());
-
-		if (!HasError && Dirty)
-		{
-			HasError = !SerializeImpl(Stream);
-			SetDirty(false);
-		}		
-
-		return !HasError;
-	}
-
 	INetObject::INetObject()
 		: INetObject(Object)
 	{
 	}
 	INetObject::INetObject(ENetObjectType InNetObjectType)
 		: Properties()
+		, NetObjectType(InNetObjectType)
 		, NetId(serialization::NetIdMapping::Get().GetOrAssignedNetId(this))
 	{
-		if (InNetObjectType == Object)
-		{
-			AddProperty(NetId);
-		}
 	}
 
+	NetObjectId INetObject::GetId() const
+	{
+		return NetId;
+	}
+
+	bool INetObject::IsDirty() const
+	{	
+		return IsDirtyFlag;
+	}
+
+	void INetObject::SetDirty(bool InDirtyFlag, bool SetAllProperty /*= false*/)
+	{	
+		IsDirtyFlag = InDirtyFlag;
+		if (SetAllProperty)
+		{
+			for (INetProperty* Property : Properties)
+			{
+				if (Property)
+				{
+					Property->SetDirty(InDirtyFlag);
+				}
+			}
+		}
+	}
 	bool INetObject::SerializeImpl(serialization::IStream& Stream)
 	{
 		return true;
@@ -56,7 +49,14 @@ namespace proto
 
 	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
 	{
-		bool HasError = !SerializeProperties(Stream, Mapper);
+		bool HasError = false;
+		if (Stream.IsWriting())
+		{
+			uint32_t NetObjectClassId = GetClassId();
+			HasError = !Stream.Serialize(NetObjectClassId);
+		}
+		
+		HasError = !(!HasError && SerializeProperties(Stream, Mapper));
 
 		if (!HasError && Stream.IsReading())
 		{
@@ -69,6 +69,12 @@ namespace proto
 	bool INetObject::SerializeProperties(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)
 	{
 		bool HasError = false;
+
+		if (NetObjectType == Object)
+		{
+			Stream.Serialize(NetId);
+		}
+
 		for (INetProperty* Property : Properties)
 		{
 			if (Property)

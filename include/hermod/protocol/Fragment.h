@@ -22,9 +22,11 @@ private:
 		uint8_t Count;
 		const std::size_t DataSize;
 		unsigned char* Data;
+		uint8_t MessageId;
 
 		Fragment();
 		Fragment(uint8_t InFragmentId, uint8_t InFragmentCount, unsigned char* InFragmentData, const std::size_t InFragmentSize);
+		Fragment(uint8_t InFragmentId, uint8_t InFragmentCount, unsigned char* InFragmentData, const std::size_t InFragmentSize, bool StealData);
 
 		virtual ~Fragment();
 

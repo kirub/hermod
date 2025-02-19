@@ -1,89 +1,94 @@
 #include "Mocks/MockBigPacket.h"
-#include "Testables/ConnectionTestable.h"
+#include "Testables/ConnectionTestableWithMockSocket.h"
+#include "Fixtures/NetMessageFixture.h"
 
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/protocol/Connection.h>
+#include <hermod/socket/NetworkHandler.h>
 
 #include <gtest/gtest.h>
 
-void OnReceiveObject(const proto::INetObject& ReceivedPacket, const MockBigPacket& SentPacket)
+
+
+class NetFragmentationFixture
+    : public NetMessageFixture
 {
-    const MockBigPacket& BigPacketReceived = dynamic_cast<const MockBigPacket&>(ReceivedPacket);
-    EXPECT_EQ(BigPacketReceived, SentPacket);
-}
+protected:
 
-template <uint8_t FragmentCount>
-void UnitTest_SendFragmented()
-{
-    uint8_t NumberOfFragments = FragmentCount;
-    NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
-    srand((unsigned int)time(NULL));
-    bool ReceivedEqualSent = false;
-    ConnectionTestable Connection;
+    template <uint8_t FragmentCount>
+    void UnitTest_SendFragmented()
+    {
+        uint8_t NumberOfFragments = FragmentCount;
+        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
 
-    MockBigPacket Packet(FragmentCount);
+        MockBigPacket Packet(FragmentCount);
+        ASSERT_TRUE(ConnectionClientToServer.Send(Packet));
+        NetHandlerClient.SendAllMessages(ConnectionClientToServer);
 
-    ASSERT_TRUE(Connection.Send((proto::INetObject&)Packet));
-    MockBigPacket SentPacket = Packet;
-    Packet.Reset();
+        // ---------------------------
+        NetHandlerServer.OnStartFrame();
+        ASSERT_GT(NetHandlerServer.GetClientConnections().size(), 0);
 
-    Connection.OnReceiveObject(std::bind(OnReceiveObject, std::placeholders::_1, SentPacket));
+        proto::NetObjectPtr NetObject = NetHandlerServer.GetClientConnections()[0]->Receive();
+        ASSERT_TRUE(NetObject);
+        EXPECT_EQ(Packet, *std::static_pointer_cast<MockBigPacket>(NetObject)); 
 
-    Connection.Update(33.3f);
-    NetObjectManager::Get().Unregister<MockBigPacket>();
-}
+        NetObjectManager::Get().Unregister<MockBigPacket>();
+    }
 
-template <uint8_t FragmentCount>
-void UnitTest_SendIncompleteFragmented()
-{
-    uint8_t NumberOfFragments = FragmentCount;
-    NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
-    srand((unsigned int)time(NULL));
-    bool ReceivedEqualSent = false;
-    ConnectionTestable Connection;
+    template <uint8_t FragmentCount>
+    void UnitTest_SendIncompleteFragmented()
+    {
+        uint8_t NumberOfFragments = FragmentCount;
+        NetObjectManager::Get().Register<MockBigPacket>([NumberOfFragments]() { return new MockBigPacket(NumberOfFragments, MockBigPacket::None); });
 
-    MockBigPacket Packet(FragmentCount, MockBigPacket::LastPacketHalf);
+        MockBigPacket Packet(FragmentCount, MockBigPacket::LastPacketHalf);
+        ASSERT_TRUE(ConnectionClientToServer.Send(Packet));
+        NetHandlerClient.SendAllMessages(ConnectionClientToServer);
 
-    ASSERT_TRUE(Connection.Send(Packet));
-    MockBigPacket SentPacket = Packet;
-    Packet.Reset();
+        // ---------------------------
 
-    Connection.OnReceiveObject(std::bind(OnReceiveObject, std::placeholders::_1, SentPacket));
+        NetHandlerServer.OnStartFrame();
+        ASSERT_GT(NetHandlerServer.GetClientConnections().size(), 0);
 
-    Connection.Update(33.3f);
-    NetObjectManager::Get().Unregister<MockBigPacket>();
-}
+        proto::NetObjectPtr NetObject = NetHandlerServer.GetClientConnections()[0]->Receive();
+        ASSERT_TRUE(NetObject);
+        EXPECT_EQ(Packet, *std::static_pointer_cast<MockBigPacket>(NetObject));
 
-TEST(Fragments, Send1FragmentedPacket)
+        NetObjectManager::Get().Unregister<MockBigPacket>();
+    }
+};
+
+TEST_F(NetFragmentationFixture, Send1FragmentedPacket)
 {
     UnitTest_SendFragmented<1>();
 }
-TEST(Fragments, Send2FragmentedPacket)
+TEST_F(NetFragmentationFixture, Send2FragmentedPacket)
 {
     UnitTest_SendFragmented<2>();
 }
-TEST(Fragments, Send4FragmentedPacket)
+TEST_F(NetFragmentationFixture, Send4FragmentedPacket)
 {
     UnitTest_SendFragmented<4>();
 }
-TEST(Fragments, Send10FragmentedPacket)
+TEST_F(NetFragmentationFixture, Send10FragmentedPacket)
 {
     UnitTest_SendFragmented<10>();
 }
 
-TEST(Fragments, Send1IncompleteFragmentedPacket)
+TEST_F(NetFragmentationFixture, Send1IncompleteFragmentedPacket)
 {
     UnitTest_SendIncompleteFragmented<1>();
 }
-TEST(Fragments, Send2IncompleteFragmentedPacket)
+TEST_F(NetFragmentationFixture, Send2IncompleteFragmentedPacket)
 {
     UnitTest_SendIncompleteFragmented<2>();
 }
-TEST(Fragments, Send4IncompleteFragmentedPacket)
+TEST_F(NetFragmentationFixture, Send4IncompleteFragmentedPacket)
 {
     UnitTest_SendIncompleteFragmented<4>();
 }
-TEST(Fragments, Send10IncompleteFragmentedPacket)
+TEST_F(NetFragmentationFixture, Send10IncompleteFragmentedPacket)
 {
     UnitTest_SendIncompleteFragmented<10>();
 }

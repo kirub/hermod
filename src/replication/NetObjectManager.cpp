@@ -7,6 +7,7 @@
 #include <hermod/serialization/WriteStream.h>
 
 #include <utility>
+#include <memory>
 
 NetObjectManager& NetObjectManager::Get() {
     static NetObjectManager instance;
@@ -31,7 +32,7 @@ NetObjectManager::NetObjectType NetObjectManager::Instantiate(const uint32_t Obj
         return nullptr;
     }
 
-    return itFound->second();
+    return std::shared_ptr<proto::INetObject>(itFound->second());
 }
 
 void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections)
@@ -42,7 +43,7 @@ void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnect
 
         for (std::shared_ptr<proto::INetObject> NetObject : NetObjectListFiltered)
         {
-            Connection->Send(*NetObject, Reliable);
+            Connection->Send(NetObject);
         }
     }
 }

@@ -1,10 +1,11 @@
+#pragma once
 #include <hermod/replication/NetObjectInterface.h>
 #include <hermod/protocol/Connection.h>
 
 #include "../Mocks/MockSocket.h"
 #include "ProtocolTestable.h"
 
-class ConnectionTestable
+class ConnectionTestableLoopback
 	: public Connection<MockSocket, ProtocolTestable>
 {
 public:
@@ -20,8 +21,8 @@ public:
 		DropAll,		// drop everything including resends
 	};
 
-	ConnectionTestable(TimeMs InConnectionTimeout = 10000)
-		: Super(InBoundPort, InConnectionTimeout)
+	ConnectionTestableLoopback(TimeMs InConnectionTimeout = 10000)
+		: Super({ "127.0.0.1", InBoundPort }, InBoundPort, InConnectionTimeout)
 		, DropStrategy(None)
 		, ProtoTest(nullptr)
 		, LastSentPacketId(Protocol::InvalidSequenceId)
@@ -43,48 +44,6 @@ public:
 	void SimulateNextPacketLost()
 	{
 		RemoteDropPackets(DropInitial);
-	}
-
-	virtual bool Send(proto::INetObject& Packet, EReliability InReliability = Unreliable) override
-	{
-		return Super::Send(Packet, InReliability);
-	}
-
-	virtual bool Send(serialization::WriteStream& Stream, EReliability InReliability = Unreliable, bool IsResend = false) override
-	{
-		bool HasSent = false;
-		switch (DropStrategy)
-		{
-			case DropAll:
-			{
-				LastSentPacketId = Super::OnPacketSent(Stream, InReliability);
-			}
-			break;
-			case DropInitial:
-			{
-				if (!IsResend)
-				{
-					LastSentPacketId = Super::OnPacketSent(Stream, InReliability);
-				}
-				else if (!Super::Send(Stream, InReliability))
-				{
-					return false;
-				}
-
-				return true;
-			}
-			break;
-			case None:
-			{
-				if (Super::Send(Stream, InReliability))
-				{
-					return true;
-				}
-			}
-			break;
-		}
-
-		return false;
 	}
 
 private:

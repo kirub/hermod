@@ -24,15 +24,24 @@ Connection<SocketType, ProtocolType>::Connection(Address RemoteEndpoint, unsigne
     , Reader(MaxMTUSize)
     , MyProtocol(std::make_unique<ProtocolType>(DefaultProtocolId))
     , PacketsSent()
+    , NetObjectQueues({std::make_shared<proto::NetObjectQueue256>(),std::make_shared<proto::NetObjectQueue256>()})
 {
     MyProtocol->OnPacketAcked([this](uint16_t InSequenceId) { AckPacketSent(InSequenceId); });
     MyProtocol->OnPacketLost([this](uint16_t InSequenceId) { Resend(InSequenceId); });
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
+Connection<SocketType, ProtocolType>::~Connection()
+{
+    for (proto::NetObjectQueue& Queue : NetObjectQueues)
+    {
+        Queue.Clear();
+    }
+}
+template < TSocket SocketType, TProtocol ProtocolType>
 void Connection<SocketType, ProtocolType>::Resend(uint16_t InPacketId)
 {
-    const int Index = InPacketId % PacketSentHistorySize;
+    /*const int Index = InPacketId % PacketSentHistorySize;
     if (serialization::WriteStream ResendBuffer = PacketsSent[Index])
     {
         Writer.Reset();
@@ -42,7 +51,7 @@ void Connection<SocketType, ProtocolType>::Resend(uint16_t InPacketId)
 
         constexpr bool IsResend = true;
         Send(Writer, Reliable, IsResend);
-    }
+    }*/
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
@@ -59,7 +68,7 @@ const unsigned char* Connection<SocketType, ProtocolType>::GetData()
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
-bool Connection<SocketType, ProtocolType>::Send(proto::INetObject& Packet, EReliability InReliability /*= Unreliable*/)
+bool Connection<SocketType, ProtocolType>::Send(proto::NetObjectPtr InNetObject)
 {
     if (!IsConnected())
     {
@@ -67,52 +76,42 @@ bool Connection<SocketType, ProtocolType>::Send(proto::INetObject& Packet, EReli
         return false;
     }
 
-    serialization::WriteStream BunchWriter(MaxStreamSize);
-    uint32_t NetObjectClassId = Packet.GetClassId();
-    bool HasError = !(BunchWriter.Serialize(NetObjectClassId) && Packet.Serialize(BunchWriter));
-    BunchWriter.EndWrite();
-
-    if (!HasError)
+    serialization::FakeWriteStream MeasureWriter;
+    if( !InNetObject->Serialize(MeasureWriter) )
     {
-        if (BunchWriter.GetDataSize() > MaxMTUSize)
+        return false;
+    }
+    MeasureWriter.Flush();
+
+    bool HasError = false;
+    if (MeasureWriter.GetDataSize() > MaxMTUSize)
+    {
+        // Handle Packet Fragmentation
+        proto::FragmentHandler Fragments(*InNetObject, MeasureWriter.GetDataSize(), MaxFragmentSize);
+        while(!Fragments.Entries.empty())
         {
-            // Handle Packet Fragmentation
-            proto::FragmentHandler Fragments(BunchWriter, MaxFragmentSize);
-            for (proto::FragmentHandler::ValueType Fragment : Fragments.Entries)
+            proto::FragmentHandler::ValueType Fragment = Fragments.Entries.front();
+            Fragments.Entries.pop_front();
+            if (proto::NetObjectPtr ObjecPtr = std::static_pointer_cast<proto::INetObject>(Fragment))
             {
-                if (Fragment)
-                {
-                    if (!Send(*Fragment, InReliability))
-                    {
-                        return false;
-                    }
-                }
+                NetObjectQueues[SendQueue].AddForSend(ObjecPtr);
             }
         }
-        else
-        {
-            Writer.Reset();
-
-            MyProtocol->Serialize(Writer);
-
-            uint32_t NetObjectClassId = Packet.GetClassId();
-            bool HasError = !(Writer.Serialize(NetObjectClassId) && Packet.Serialize(Writer));
-
-            Writer.EndWrite();
-
-            HasError = HasError || Send(Writer, InReliability);
-        }
+    }
+    else
+    {
+        NetObjectQueues[SendQueue].AddForSend(InNetObject);
     }
 
-    return !HasError;
+    return true;
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
-bool Connection<SocketType, ProtocolType>::Send(serialization::WriteStream& Stream, EReliability InReliability /*= Unreliable*/, bool IsResend /*= false*/)
+bool Connection<SocketType, ProtocolType>::Send(serialization::WriteStream& InStream)
 {
-    if (Socket->Send(Stream, RemoteEndpoint))
+    if (Socket->Send(InStream, RemoteEndpoint))
     {
-        OnPacketSent(Stream, InReliability);
+        MyProtocol->OnPacketSent(InStream);
         return true;
     }
 
@@ -120,48 +119,60 @@ bool Connection<SocketType, ProtocolType>::Send(serialization::WriteStream& Stre
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
-uint16_t Connection<SocketType, ProtocolType>::OnPacketSent(serialization::WriteStream& InStream, EReliability InReliability)
+proto::NetObjectPtr Connection<SocketType, ProtocolType>::Receive()
 {
-    uint16_t PacketSequenceId = MyProtocol->OnPacketSent(InStream);
-    if (InReliability == Reliable)
-    {
-        const int Index = PacketSequenceId % PacketSentHistorySize;
-        PacketsSent[Index] = InStream.Shift(ProtocolHeaderSizeLessId);
-    }
-    return PacketSequenceId;
+    return NetObjectQueues[ReceiveQueue].DequeueObject();
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
 void Connection<SocketType, ProtocolType>::OnPacketReceived(serialization::ReadStream& InStream)
 {
+    LastPacketReceiveTimeout = ConnectionTimeoutSec;
+
     // Try handle packet
-    bool HasError = false;
-    proto::INetObject* NetObject = nullptr;
+    while (InStream.GetBytesRemaining() > 0)
+    {
+        OnMessageReceived(InStream);
+    }
+}
+
+template < TSocket SocketType, TProtocol ProtocolType>
+void Connection<SocketType, ProtocolType>::OnMessageReceived(serialization::ReadStream& InStream, uint8_t NetObjectOrderId /*= 255*/, uint8_t NetObjectIdSpaceCount /*= 1*/)
+{
+    proto::NetObjectPtr NetObject;
+
+    if (NetObjectOrderId == 255)
+    {
+        NetObjectOrderId = proto::NetObjectQueue::ReadMessageId(InStream);
+    }
 
     uint32_t NetObjectClassId = 0;
-    HasError = !InStream.Serialize(NetObjectClassId);
+    assert(InStream.Serialize(NetObjectClassId));
 
     if (NetObject = NetObjectManager::Get().Instantiate(NetObjectClassId))
     {
         assert(NetObject->Serialize(InStream, NetObjectManager::Get().GetPropertiesListeners(*NetObject)));
+        assert(InStream.Flush());
 
         if (type::is_a<proto::Fragment>(NetObjectClassId))
         {
-            Fragments.OnFragment(dynamic_cast<proto::Fragment*>(NetObject));
+            proto::FragmentHandler::ValueType FragmentPtr = std::static_pointer_cast<proto::Fragment>(NetObject);
+            FragmentPtr->MessageId = NetObjectOrderId;
+            Fragments.OnFragment(FragmentPtr);
             if (Fragments.IsComplete())
             {
                 serialization::ReadStream BunchStream = Fragments.Gather();
-                OnPacketReceived(BunchStream);
+                OnMessageReceived(BunchStream, Fragments.Entries[0]->MessageId, Fragments.Entries.size());
                 Fragments.Reset();
             }
         }
-        else if (ReceiveObjectCallback)
-        {
-            ReceiveObjectCallback(*NetObject);
-        }
         else
         {
-            printf("Unhandle packet %u", NetObjectClassId);
+            if (ReceiveObjectCallback)
+            {
+                ReceiveObjectCallback(*NetObject);
+            }
+            NetObjectQueues[ReceiveQueue].AddForReceive(NetObjectOrderId, NetObject, NetObjectIdSpaceCount);
         }
     }
     else
@@ -172,7 +183,6 @@ void Connection<SocketType, ProtocolType>::OnPacketReceived(serialization::ReadS
             (*ReceiveDataCallback)((unsigned char*)InStream.GetData(), InStream.GetDataSize());
         }
     }
-
 }
 
 template < TSocket SocketType, TProtocol ProtocolType>
@@ -187,9 +197,13 @@ bool Connection<SocketType, ProtocolType>::Send(unsigned char* Data, std::size_t
     Writer.Reset();
 
     MyProtocol->Serialize(Writer);
-    uint32_t PacketId = proto::INetObject::CustomDataId;
-    Writer.Serialize(PacketId); // Custom data with no packet type
-    Writer.Serialize(Data, serialization::NetPropertySettings<unsigned char*>(Len));
+
+    if (Len > 0)
+    {
+        uint32_t PacketId = proto::INetObject::CustomDataId;
+        Writer.Serialize(PacketId); // Custom data with no packet type
+        Writer.Serialize(Data, serialization::NetPropertySettings<unsigned char*>(Len));
+    }
 
     if (Socket->Send(Writer, RemoteEndpoint))
     {
@@ -279,13 +293,34 @@ IConnection::Error Connection<SocketType, ProtocolType>::Update(TimeMs TimeDelta
 
                 LastPacketReceiveTimeout = ConnectionTimeoutSec;
          
-                OnPacketReceived(Reader);
+                if (Reader.GetBytesRemaining() >= sizeof(uint32_t))
+                {
+                    OnPacketReceived(Reader);
 
-                assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream)
+                    // Ack this packet
+                    // TODO: Queue packets in case we send something useful while needing to ack packet
+                    Send(nullptr, 0);
+
+                    assert(Reader.Align(32)); // Have to align on word in case another packet is following (corresponding to send's EndStream)
+                }
+
             }
             Reader.Reset();
         }
     }
 
     return None;
+}
+
+
+template < TSocket SocketType, TProtocol ProtocolType>
+proto::NetObjectQueue256& Connection<SocketType, ProtocolType>::GetNetObjectQueue(ObjectQueueType InQueueType)
+{
+    return NetObjectQueues[InQueueType];
+}
+
+template < TSocket SocketType, TProtocol ProtocolType>
+const Address& Connection<SocketType, ProtocolType>::GetRemoteEndpoint() const
+{
+    return RemoteEndpoint;
 }

@@ -28,5 +28,5 @@ NetObjectManager::NetObjectType NetObjectManager::Instantiate(const uint32_t Obj
         return nullptr;
     }
 
-    return itFound->second(std::forward<Args>(InArgs)...);
+    return std::make_shared(itFound->second(std::forward<Args>(InArgs)...));
 }

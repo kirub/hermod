@@ -24,9 +24,9 @@ namespace serialization
         virtual void Reset();
         virtual const uint8_t* GetData();
         virtual int GetDataSize() const;
+        virtual bool Flush() override;
 
         virtual bool WouldOverflow(int bytes) const override;
-        virtual void EndWrite() override;
 
         virtual int GetBytesProcessed() const override;
         virtual int GetBitsProcessed() const override;
@@ -43,8 +43,6 @@ namespace serialization
         virtual bool SerializeBytes(const uint8_t* InData, int InBytesCount) override;
         virtual bool SerializeAlign(uint32_t AlignToBits = 8) override;
         virtual bool SerializeCheck(const char* string) override;
-
-        void Flush();
 
 
         virtual int GetError() const;

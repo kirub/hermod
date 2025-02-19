@@ -14,14 +14,3 @@ int ISocket::Receive(Address& sender, serialization::IStream& Stream)
 	Stream.AdjustSize(BytesRead);
 	return BytesRead;
 }
-
-bool ISocket::Initialize()
-{
-	WSADATA WsaData;
-	return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;
-}
-
-void ISocket::Shutdown()
-{
-	WSACleanup();
-}

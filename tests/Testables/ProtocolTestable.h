@@ -1,3 +1,5 @@
+#pragma once
+
 #include <hermod/protocol/Protocol.h>
 
 #include "../Mocks/MockSocket.h"
@@ -5,33 +7,16 @@
 class ProtocolTestable
 	: public Protocol
 {
-
 	bool ForcePacketLost = false;
 
 public:
-	ProtocolTestable(uint32_t ProtocolId)
-		: Protocol(ProtocolId)
-	{
-	}
+	ProtocolTestable(uint32_t ProtocolId);
 
-	void PacketLost(bool Enable)
-	{
-		ForcePacketLost = Enable;
-	}
-	void TriggerPacketLost(uint16_t PacketId)
-	{
-		Protocol::TriggerPacketLost(PacketId);
-	}
+	void PacketLost(bool Enable);
+	void TriggerPacketLost(uint16_t PacketId);
 
-	uint16_t GetLastSentPacketId() const
-	{
-		return GetLatestSequenceId(Local);
-	}
-
-	uint16_t GetLastReceivedtPacketId() const
-	{
-		return GetLatestSequenceId(Remote);
-	}
+	uint16_t GetLastSentPacketId() const;
+	uint16_t GetLastReceivedtPacketId() const;
 
 private:
 

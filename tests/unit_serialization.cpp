@@ -252,7 +252,12 @@ TEST(Serialization, SerializeVector2f)
     Vector2f MyReadVector;
 
     MyOgVector.Serialize(Writer);
+    Writer.Flush();
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
+
+    uint32_t NetObjectClassId = 0;
+    ASSERT_TRUE(Reader.Serialize(NetObjectClassId));
+
     MyReadVector.Serialize(Reader);
 
     EXPECT_EQ(Writer.GetDataSize(),Reader.GetDataSize()) << "Expecting Writer and Reader buffer to be the same size";

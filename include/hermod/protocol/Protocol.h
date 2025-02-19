@@ -3,6 +3,7 @@
 #include "ProtocolInterface.h"
 #include <hermod/platform/Platform.h>
 #include <memory>
+#include <chrono>
 
 namespace serialization
 {
@@ -22,24 +23,24 @@ public:
 	virtual bool Serialize(serialization::IStream& InStream) override;
 
 	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) override;
-	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream) override;
+	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId) override;
 	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
 	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
 	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
 
-	virtual const int Size() const;
+	virtual uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const override;
+	virtual const int Size() const override;
+	virtual const int64_t GetRTT() const override;
 
+	virtual bool HasPacketReliability() const override { return true; }
 	
 protected:
 
-	enum SequenceIdType
-	{
-		Local,
-		Remote
-	};
 
 	static const UINT8 HistorySize = 33;
 	static const UINT8 InvalidSequenceIdx = 255;
+	static const int64_t MaxRTT = 1000;
+	static const uint8_t RTTIncFactor = 10;
 
 
 	bool WriteProtocolId(unsigned char*& Data, int& Len) const;
@@ -55,9 +56,9 @@ protected:
 	UINT8 GetLatestSequenceIdx( SequenceIdType InSeqIdType ) const;
 	UINT8 GetNextSequenceIdx(SequenceIdType InSeqIdType) const;
 
-	uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const;
 	uint16_t GetNextSequenceId(SequenceIdType InSeqIdType) const;
 
+	void ReportRTT(const int64_t InRTT);
 	bool ReadAndAck(const unsigned char*& Data, int& Len);
 	UINT8 FindPacket(const uint16_t InPacketId, SequenceIdType InSeqType, const UINT8 StartIdx = 0, const int Increment = 1) const;
 	bool CheckPacket(const uint16_t InPacketId, SequenceIdType InSeqType) const;
@@ -68,13 +69,40 @@ protected:
 	virtual void AckPacket(const uint16_t InAckedPacket);
 	virtual void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
 
+private:
+
+	struct PacketData
+	{
+		uint16_t SequenceId = InvalidSequenceId;
+		int64_t SendTime = -1;
+
+		const int64_t RTT()
+		{
+			return (SendTime > -1) ? utils::Time::NowMs() - SendTime : 0;
+		}
+
+		void Reset()
+		{
+			SequenceId = InvalidSequenceId;
+			SendTime = -1;
+		}
+
+		PacketData& operator=(uint16_t InSequenceId)
+		{
+			SequenceId = InSequenceId;
+			SendTime = InSequenceId == InvalidSequenceId ? -1 : utils::Time::NowMs();
+			return *this;
+		}
+	};
+
 	OnPacketLostCallbackType OnPacketLostCallback;
 	OnPacketAckedCallbackType OnPacketAckedCallback;
 
+	int64_t CurrentRTT;
 	unsigned int Id;
 	uint16_t LocalSequenceIdHistory[HistorySize];
 	uint16_t RemoteSequenceIdHistory[HistorySize];
-	uint16_t NotAckedPackets[HistorySize];
+	PacketData NotAckedPackets[HistorySize];
 	UINT8 NextLocalSequenceIdx;
 	UINT8 NextRemoteSequenceIdx;
 };

@@ -145,19 +145,14 @@ namespace serialization
         return true;
     }
 
-    void WriteStream::Flush()
+    bool WriteStream::Flush()
     {
-        Writer.FlushBits();
+        return Writer.FlushBits();
     }
 
     bool WriteStream::WouldOverflow(int bytes) const
     {
         return Writer.WouldOverflow(bytes * 8);
-    }
-
-    void WriteStream::EndWrite()
-    {
-        Flush();
     }
 
     const uint8_t* WriteStream::GetData()

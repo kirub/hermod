@@ -1,5 +1,6 @@
 #pragma once
-#include "NetPropertyInterface.h"
+#include <hermod/serialization/Stream.h>
+#include <hermod/replication/NetPropertyInterface.h>
 
 namespace proto
 {
@@ -25,12 +26,12 @@ namespace proto
 
 	public:
 
-		NetProperty(const PropertyType InValue)
-			: NetProperty(InValue, serialization::NetPropertySettings<PropertyType>())
+		NetProperty(INetObject& InParent, const PropertyType InValue)
+			: NetProperty(InParent, InValue, serialization::NetPropertySettings<PropertyType>())
 		{
 		}
-		NetProperty(const PropertyType InValue, const serialization::NetPropertySettings<PropertyType>& InProperties)
-			: INetProperty()
+		NetProperty(INetObject& InParent, const PropertyType InValue, const serialization::NetPropertySettings<PropertyType>& InProperties)
+			: INetProperty(InParent)
 			, Properties(InProperties)
 			, Value(InValue)
 			, OnSerializeCallback()
@@ -53,7 +54,8 @@ namespace proto
 			if (Value != InProperty)
 			{
 				Value = InProperty;
-				SetDirty(true);
+				constexpr bool DontNotifyParent = false;
+				SetDirty(true, DontNotifyParent);
 			}
 
 			return *this;

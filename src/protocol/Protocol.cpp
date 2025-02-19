@@ -1,6 +1,5 @@
 #include <hermod/protocol/Protocol.h>
 
-#include "hermod/platform/Platform.h"
 #include "hermod/serialization/Stream.h"
 #include "hermod/serialization/WriteStream.h"
 #include "hermod/utilities/Utils.h"
@@ -14,6 +13,7 @@ Protocol::Protocol(unsigned int InId)
 	, NotAckedPackets()
 	, OnPacketAckedCallback(nullptr)
 	, OnPacketLostCallback(nullptr)
+	, CurrentRTT(0)
 {
 	memset(RemoteSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
 	memset(LocalSequenceIdHistory, InvalidSequenceId, sizeof(uint16_t) * HistorySize);
@@ -95,13 +95,13 @@ bool Protocol::Serialize(serialization::IStream& InStream)
 		return false;
 	}
 
-	const bool NoAckProvided = Ack == InvalidSequenceId;
+	const bool AckProvided = Ack != InvalidSequenceId;
 
 	uint32_t AckBitfield = 0;
 
 	if (InStream.IsWriting())
 	{
-		if (!NoAckProvided)
+		if (AckProvided)
 		{
 			AckBitfield = ComputeAckBitfield(Ack);
 		}
@@ -115,22 +115,21 @@ bool Protocol::Serialize(serialization::IStream& InStream)
 
 	if (InStream.IsReading())
 	{
-		if (NoAckProvided)
+		if (AckProvided)
 		{
-			return true;
-		}
+			AckPacket(Ack);
 
-		AckPacket(Ack);
-
-		for (int BitIdx = 0; BitIdx < HistorySize - 1; ++BitIdx)
-		{
-			if (AckBitfield & (1 << BitIdx))
+			for (int BitIdx = 0; BitIdx < HistorySize - 1; ++BitIdx)
 			{
-				uint16_t SequenceId = Ack - BitIdx - 1;
-				AckPacket(SequenceId);
+				if (AckBitfield & (1 << BitIdx))
+				{
+					uint16_t SequenceId = Ack - BitIdx - 1;
+					AckPacket(SequenceId);
+				}
 			}
 		}
 	}
+	assert(InStream.Align(32));
 
 	return true;
 }
@@ -178,7 +177,7 @@ uint16_t Protocol::OnPacketSent(serialization::WriteStream InStream)
 {
 	uint32_t* BufferAtSequenceIdOffset=((uint32_t*)InStream.GetData()) + 1;
 	uint16_t PacketSentSequenceId = (uint16_t)(ntohl(*BufferAtSequenceIdOffset) & 0xFFFF);
-	return OnPacketSent(PacketSentSequenceId, std::move(InStream));
+	return OnPacketSent(PacketSentSequenceId);
 }
 
 uint16_t Protocol::OnPacketSent(unsigned char* Buffer, int Len)
@@ -187,12 +186,12 @@ uint16_t Protocol::OnPacketSent(unsigned char* Buffer, int Len)
 	const unsigned char* BufferAtPacketIdLocation = Buffer + sizeof(UINT32);
 	if (ReadSequenceId(PacketSentSequenceId, BufferAtPacketIdLocation, Len) && PacketSentSequenceId != InvalidSequenceId)
 	{
-		return OnPacketSent(PacketSentSequenceId, { Buffer , Len } );
+		return OnPacketSent(PacketSentSequenceId);
 	}
 
 	return InvalidSequenceId;
 }
-uint16_t Protocol::OnPacketSent(const uint16_t PacketSentSequenceId, serialization::WriteStream InStream)
+uint16_t Protocol::OnPacketSent(const uint16_t PacketSentSequenceId)
 {
 	CachePacket(PacketSentSequenceId, Local);
 	return PacketSentSequenceId;
@@ -428,12 +427,31 @@ bool Protocol::CheckPacket(const uint16_t InSequenceId, SequenceIdType InSeqType
 void Protocol::AckPacket(const uint16_t InAckedPacket)
 {
 	const int Index = InAckedPacket % HistorySize;
-	NotAckedPackets[Index] = InvalidSequenceId;
+	ReportRTT(NotAckedPackets[Index].RTT());
+	NotAckedPackets[Index].Reset();
 
 	if (OnPacketAckedCallback)
 	{
 		OnPacketAckedCallback(InAckedPacket);
 	}
+}
+
+void Protocol::ReportRTT(const int64_t InRTT)
+{
+	if (InRTT > MaxRTT)
+	{
+		// Discard out of bounds values
+		return;
+	}
+
+	const int64_t RTTInc = (int64_t)((InRTT - CurrentRTT) * (RTTIncFactor / 100.0f));
+	CurrentRTT += RTTInc;
+}
+
+
+const int64_t Protocol::GetRTT() const
+{
+	return CurrentRTT;
 }
 
 bool Protocol::ReadAndAck(const unsigned char*& Data, int& Len)
@@ -479,7 +497,7 @@ void Protocol::CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType)
 	if (InSeqType == Local)
 	{
 		const int IndexJustSentPacketInAckedPacket = NewSequenceId % HistorySize;
-		UINT16 EvictedSequenceId = NotAckedPackets[IndexJustSentPacketInAckedPacket];
+		UINT16 EvictedSequenceId = NotAckedPackets[IndexJustSentPacketInAckedPacket].SequenceId;
 		// Means there was a packet here before that we are evicting from history
 		if (EvictedSequenceId != InvalidSequenceId)
 		{

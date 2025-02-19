@@ -20,7 +20,7 @@ namespace serialization
 
         void Reset();
         void Reset(void* data, int bytes);
-        void FlushBits();
+        bool FlushBits();
 
         bool WouldOverflow(int bits) const;
 

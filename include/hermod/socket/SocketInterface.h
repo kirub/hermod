@@ -17,7 +17,17 @@ public:
 	bool Send(serialization::IStream& InStream, const Address& dest);
 	int Receive(Address& sender, serialization::IStream& Stream);
 
-	static bool Initialize();
-	static void Shutdown();
 
+    static bool Initialize()
+    {
+        WSADATA WsaData;
+        return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;
+    }
+
+    static void Shutdown()
+    {
+        WSACleanup();
+    }
+
+	SOCKET Handle;
 };

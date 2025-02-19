@@ -7,7 +7,7 @@
 #include <cassert>
 #include <bit>
 #include <bitset>
-
+#include <chrono>
 
 #define PROTO_SERIALIZE_CHECKS              1
 //#define PROTO_DEBUG_PACKET_LEAKS            0
@@ -15,6 +15,14 @@
 
 namespace utils
 {
+    class Time
+    {
+    public:
+        static int64_t NowMs()
+        {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        }
+    };
     std::vector<std::string> split(const std::string& s, char delim);
 
     bool sequence_greater_than(uint16_t s1, uint16_t s2);

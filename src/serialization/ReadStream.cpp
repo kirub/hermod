@@ -42,6 +42,10 @@ namespace serialization
         BitsRead = 0;
     }
 
+    bool ReadStream::Flush()
+    {
+        return Reader.FlushBits();
+    }
 
     ReadStream ReadStream::Shift(std::size_t Offset)
     {

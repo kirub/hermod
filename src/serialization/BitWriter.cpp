@@ -43,7 +43,7 @@ namespace serialization
 
         if (m_scratchBits >= 32)
         {
-            FlushBits();
+            assert(FlushBits());
         }
     }
 
@@ -97,17 +97,23 @@ namespace serialization
         assert(headBytes + numWords * 4 + tailBytes == bytes);
     }
 
-    void BitWriter::FlushBits()
+    bool BitWriter::FlushBits()
     {
         if (m_scratchBits != 0)
         {
             assert(m_wordIndex < m_numWords);
             m_data[m_wordIndex] = htonl(uint32_t(m_scratch & 0xFFFFFFFF));
+            if ((m_scratch >> m_scratchBits) != 0)
+            {
+                return false;
+            }
             m_scratch >>= 32;
             m_bitsWritten += 32;
             m_scratchBits = std::max(m_scratchBits - 32, 0);
             m_wordIndex++;
         }
+
+        return true;
     }
 
 
