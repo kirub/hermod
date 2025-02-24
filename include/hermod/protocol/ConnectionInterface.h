@@ -2,6 +2,7 @@
 
 #include <hermod/platform/Platform.h>
 #include <hermod/utilities/Types.h>
+#include <hermod/utilities/Callable.h>
 #include <hermod/replication/NetObjectInterface.h>
 
 #include <cstddef>
@@ -17,7 +18,7 @@ namespace proto
 	class INetObject;
 }
 
-class HERMOD_API IConnection
+class IConnection
 {
 
 public:
@@ -28,9 +29,6 @@ public:
 		Count
 	};
 
-	using OnReceiveDataFunctor = void(*)(unsigned char*, const int);
-	using OnReceiveObjectFunctor = std::function<void(proto::INetObject&)>;
-
 	enum Error
 	{
 		None,
@@ -39,14 +37,12 @@ public:
 		InvalidHeader
 	};
 
-	IConnection()
-		: ReceiveDataCallback(nullptr)
-		, ReceiveObjectCallback(nullptr)
-		, NeedsAck(false)
+	HERMOD_API IConnection()
+		: NeedsAck(false)
 	{
 
 	}
-	virtual ~IConnection()
+	HERMOD_API virtual ~IConnection()
 	{ }
 
 	template < std::derived_from<proto::INetObject> T>
@@ -54,30 +50,19 @@ public:
 	{
 		return Send(std::static_pointer_cast<proto::INetObject>(std::make_shared<T>(std::move(InNetObject))));
 	}
-	virtual bool Send(proto::NetObjectPtr InNetObject) = 0;
-	virtual bool Send(serialization::WriteStream& Packet) = 0;
-	virtual bool Send(unsigned char* Data, std::size_t Len) = 0;
-	virtual proto::NetObjectPtr Receive() = 0;
-	virtual const unsigned char* GetData() = 0;
+	HERMOD_API virtual bool Send(proto::NetObjectPtr InNetObject) = 0;
+	HERMOD_API virtual proto::NetObjectPtr Receive() = 0;
 	virtual proto::NetObjectQueue256& GetNetObjectQueue(ObjectQueueType InQueueType) = 0;
-	virtual void OnPacketReceived(serialization::ReadStream& Stream) = 0;
+	virtual bool OnPacketReceived(serialization::ReadStream& Stream) = 0;
+	virtual bool OnPacketSent(serialization::WriteStream& InStream, int32_t& MessageIncludedCount) = 0;
 
-	virtual bool IsConnected() const = 0;
-	virtual bool IsClient() const = 0;
-	virtual bool IsServer() const = 0;
+	HERMOD_API virtual bool IsConnected() const = 0;
+	HERMOD_API virtual bool IsClient() const = 0;
+	HERMOD_API virtual bool IsServer() const = 0;
 
-	virtual class Address const& GetRemoteEndpoint() const = 0;
+	HERMOD_API virtual class Address const& GetRemoteEndpoint() const = 0;
 
-	virtual Error Update(TimeMs timeDelta) = 0;
-
-	void OnReceiveData(OnReceiveDataFunctor InReceiveDataCallback)
-	{
-		ReceiveDataCallback = InReceiveDataCallback;
-	}
-	void OnReceiveObject(OnReceiveObjectFunctor InReceiveObjectCallback)
-	{
-		ReceiveObjectCallback = InReceiveObjectCallback;
-	}
+	virtual void Update(TimeMs timeDelta) = 0;
 
 	void SetNeedsAck()
 	{
@@ -87,9 +72,18 @@ public:
 	{
 		return NeedsAck.exchange(false);
 	}
+
+	void OnConnected(Callable<void()> InCallable)
+	{
+		OnConnectedFunc = InCallable;
+	}
+	void OnDisconnected(Callable<void()> InCallable)
+	{
+		OnDisconnectedFunc = InCallable;
+	}
 protected:
 
-	OnReceiveDataFunctor ReceiveDataCallback;
-	OnReceiveObjectFunctor ReceiveObjectCallback;
 	std::atomic_bool NeedsAck;
+	Callable<void()> OnConnectedFunc;
+	Callable<void()> OnDisconnectedFunc;
 };

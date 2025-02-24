@@ -22,7 +22,7 @@ namespace proto
 
 class HERMOD_API INetObject
 {
-	using PropertiesContainer = utils::FixedIntrusiveArray<MaxPropertyPerObject, INetProperty>;
+	using PropertiesContainer = utils::FixedIntrusiveArray<MaxPropertyPerObject/*, INetProperty*/>;
 
 	INTERNAL_NETCLASS_ID(INetObject)
 

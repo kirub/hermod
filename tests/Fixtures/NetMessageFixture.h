@@ -17,7 +17,7 @@ class NetMessageFixture
 {
 protected:
 
-    using NetHandlerType = NetworkHandler< UDPSocket, ProtocolTestable>;
+    using NetHandlerType = NetworkHandler;
 
     NetMessageFixture()
         : NetMessageFixture(30000, 1)

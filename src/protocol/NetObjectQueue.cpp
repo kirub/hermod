@@ -125,7 +125,7 @@ namespace proto
 		assert(InStream.Align(32));
 	}
 
-	int NetObjectQueue::GetSendBuffer(serialization::WriteStream& OutStream, std::vector<int>& Ids)
+	int NetObjectQueue::GetSendBuffer(serialization::WriteStream& OutStream, std::vector<uint8_t>& Ids)
 	{
 		int NbMessagesHandle = 0;
 		int Idx = OldUnackedId;

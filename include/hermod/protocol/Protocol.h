@@ -11,28 +11,28 @@ namespace serialization
 	class WriteStream;
 }
 
-class HERMOD_API Protocol
+class Protocol
 	: public IProtocol
 {
 public:
 
-	Protocol(unsigned int InId);
+	HERMOD_API Protocol(unsigned int InId);
 
-	virtual bool WriteHeader(unsigned char* Data, int Len) override;
-	virtual bool CheckHeader(const unsigned char*& Data, int& Len) override;
-	virtual bool Serialize(serialization::IStream& InStream) override;
+	HERMOD_API virtual bool WriteHeader(unsigned char* Data, int Len) override;
+	HERMOD_API virtual bool CheckHeader(const unsigned char*& Data, int& Len) override;
+	HERMOD_API virtual bool Serialize(serialization::IStream& InStream) override;
 
-	virtual uint16_t OnPacketSent(serialization::WriteStream InStream) override;
-	virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId) override;
-	virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
-	virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
-	virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
+	HERMOD_API virtual uint16_t OnPacketSent(serialization::WriteStream InStream) override;
+	HERMOD_API virtual uint16_t OnPacketSent(const uint16_t PacketSentSequenceId) override;
+	HERMOD_API virtual uint16_t OnPacketSent(unsigned char* Buffer, int Len) override;
+	HERMOD_API virtual void OnPacketLost(const OnPacketLostCallbackType& Callback) override;
+	HERMOD_API virtual void OnPacketAcked(const OnPacketAckedCallbackType& Callback) override;
 
-	virtual uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const override;
-	virtual const int Size() const override;
-	virtual const int64_t GetRTT() const override;
+	HERMOD_API virtual uint16_t GetLatestSequenceId(SequenceIdType InSeqIdType) const override;
+	HERMOD_API virtual const int Size() const override;
+	HERMOD_API virtual const int64_t GetRTT() const override;
 
-	virtual bool HasPacketReliability() const override { return true; }
+	HERMOD_API virtual bool HasPacketReliability() const override { return true; }
 	
 protected:
 
@@ -64,10 +64,10 @@ protected:
 	bool CheckPacket(const uint16_t InPacketId, SequenceIdType InSeqType) const;
 	UINT32 ComputeAckBitfield(const uint16_t LastRemoteSequenceId) const;
 	UINT32 ComputeAckBitfield2(const uint16_t ReferenceSequenceId) const;
-	void TriggerPacketLost(uint16_t PacketSequenceId) const;
+	HERMOD_API void TriggerPacketLost(uint16_t PacketSequenceId) const;
 
-	virtual void AckPacket(const uint16_t InAckedPacket);
-	virtual void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
+	HERMOD_API virtual void AckPacket(const uint16_t InAckedPacket);
+	HERMOD_API virtual void CachePacket(uint16_t NewSequenceId, SequenceIdType InSeqType);
 
 private:
 

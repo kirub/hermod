@@ -2,9 +2,11 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <concepts>
 #include <limits>
 #include <memory>
+
+#include <hermod/utilities/Utils.h>
+#include <hermod/utilities/TypeTraits.h>
 
 typedef double TimeMs;
 
@@ -26,10 +28,6 @@ namespace proto
 {
 	typedef class NetObjectQueue NetObjectQueue256;
 }
-
-
-template < typename T> concept TSocket = std::derived_from<T, class ISocket>;
-template < typename T> concept TProtocol = std::derived_from<T, class IProtocol>;
 
 enum EReliability
 {
@@ -61,24 +59,43 @@ struct typeid_helper {
 #define TYPEID( T ) typeid_helper< Hash32_CT( #T, sizeof( #T ) - 1 ) >
 #define TYPEID_VAL( T ) TYPEID(T)::value
 
+#if _HAS_CXX20
 template <typename T> concept THasClassIdFunc = requires(T t) { 
 	{ t.GetClassId() } -> std::same_as<uint32_t>;
 };
 
-namespace type
-{
-	template < THasClassIdFunc T1, THasClassIdFunc T2 >
-	static bool is_a(const T2& NetObject)
-	{
+
+namespace type {
+	template <THasClassIdFunc T1, THasClassIdFunc T2>
+	static bool is_a(const T2 &NetObject) {
 		return T1::NetObjectId::value == NetObject.GetClassId();
 	}
 
-	template < THasClassIdFunc T1>
-	static bool is_a(const uint32_t& NetObjectId)
-	{
+	template <THasClassIdFunc T1>
+	static bool is_a(const uint32_t &NetObjectId) {
 		return T1::NetObjectId::value == NetObjectId;
 	}
 }
+
+#else
+GENERATE_MEMBER_FUNCTION_CHECK(GetClassId, uint32_t, const)
+
+namespace type {
+/* template <typename T1, typename T2, typename = void>
+	static bool is_a(const T2 &NetObject);*/
+
+	template <typename T1, typename T2, typename = typename enable_if<has_member_function_GetClassId<T1>::Value && has_member_function_GetClassId<T2>::Value>::Type>
+	static bool is_a(const T2 &NetObject) {
+		return T1::NetObjectId::value == NetObject.GetClassId();
+	}
+
+	template <typename T1, uint32_t, typename = typename enable_if<has_member_function_GetClassId<T1>::Value>::Type>
+	static bool is_a(const uint32_t &NetObjectId) {
+		return T1::NetObjectId::value == NetObjectId;
+	}
+} //namespace type
+#endif
+
 
 #define INTERNAL_NETCLASS_ID(ClassName)				\
 public:												\
