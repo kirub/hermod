@@ -23,8 +23,6 @@ class Connection
 	: public IConnection
 {
 public:
-	using ProtocolPtr = std::shared_ptr<IProtocol>;
-
 	using IConnection::Send;
 
 	HERMOD_API Connection(ProtocolPtr InProtocol, TimeMs InConnectionTimeoutMs);
@@ -44,6 +42,7 @@ public:
 	HERMOD_API bool IsServer() const;
 
 	HERMOD_API void Update(TimeMs timeDelta);
+	HERMOD_API virtual void BuildConsiderList(const std::vector<proto::NetObjectPtr>& NetObjects) override;
 
 protected:
 	void OnMessageReceived(serialization::ReadStream& Stream, uint8_t NetObjectOrderId = 255, uint8_t NetObjectIdSpaceCount = 1);

@@ -26,11 +26,15 @@ namespace proto
         proto::NetQueueObjectData& QueueObject(NetObjectPtr InNetObject, int MessageId = -1);
 	public:
 
+        class iterator;
+        class const_iterator;
+
 		NetObjectQueue();
 
         void Clear();
         int32_t Size() const;
         bool Empty() const;
+        void Advance(iterator Target);
 
 		void OnMessagesAcked(std::vector<int> Ids);
 
@@ -50,7 +54,7 @@ namespace proto
         public:
             // iterator traits
             using difference_type = std::size_t;
-            using value_type = NetObjectPtr;
+            using value_type = NetQueueObjectData&;
             using pointer = NetQueueObjectData*;
             using reference = NetQueueObjectData&;
             using iterator_category = std::forward_iterator_tag;
@@ -60,7 +64,7 @@ namespace proto
             iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
             bool operator==(iterator other) const { return Current == other.Current; }
             bool operator!=(iterator other) const { return !(*this == other); }
-            value_type operator*() { return Current->Object; }
+            value_type operator*() { return *Current; }
         private:
             pointer Current;
         };
@@ -68,7 +72,7 @@ namespace proto
         public:
             // const_iterator traits
             using difference_type = std::size_t;
-            using value_type = NetObjectPtr;
+            using value_type = const NetQueueObjectData&;
             using pointer = const NetQueueObjectData*;
             using reference = const NetQueueObjectData&;
             using iterator_category = std::forward_iterator_tag;
@@ -78,12 +82,13 @@ namespace proto
             const_iterator operator++(int) { const_iterator retval = *this; ++(*this); return retval; }
             bool operator==(const_iterator other) const { return Current == other.Current; }
             bool operator!=(const_iterator other) const { return !(*this == other); }
-            value_type operator*() { return Current->Object; }
+            value_type operator*() { return *Current; }
         private:
             pointer Current;
         };
 
         iterator begin() { return Queue; }
+        iterator first_free() { return Queue + CurrentQueueIdx; }
         iterator end() { return Queue + QueueSizeMax; }
         const_iterator cbegin() { return Queue; }
         const_iterator cend() { return Queue + QueueSizeMax; }

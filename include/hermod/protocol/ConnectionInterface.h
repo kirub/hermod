@@ -63,6 +63,7 @@ public:
 	HERMOD_API virtual class Address const& GetRemoteEndpoint() const = 0;
 
 	virtual void Update(TimeMs timeDelta) = 0;
+	virtual void BuildConsiderList(const std::vector<proto::NetObjectPtr>& NetObjects) = 0;
 
 	void SetNeedsAck()
 	{

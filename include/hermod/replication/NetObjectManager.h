@@ -47,7 +47,7 @@ public:
     template < typename... Args >
     NetObjectType Instantiate(const uint32_t ObjectClassId, Args&&... InArgs) const;
 
-    void ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections);
+    void ReplicateObjects(std::vector<ConnectionPtr> Connections);
 
     HERMOD_API std::optional<PropertiesListenerContainer> GetPropertiesListeners(proto::INetObject& NetObject) const;
 

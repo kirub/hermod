@@ -213,3 +213,8 @@ const Address& Connection::GetRemoteEndpoint() const
     return RemoteEndpoint;
 }
 
+
+void Connection::BuildConsiderList(const std::vector<proto::NetObjectPtr>& NetObjects)
+{
+    NetObjectQueues[SendQueue].Advance(std::copy_if(NetObjects.begin(), NetObjects.end(), NetObjectQueues[SendQueue].first_free(), [this](proto::NetObjectPtr ObjPtr) { return ObjPtr && ObjPtr->IsRelevantFor(*this); }));
+}

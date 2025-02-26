@@ -23,13 +23,23 @@ namespace proto
 		return Id > -1 && Object;
 	}
 
-	void NetQueueObjectData::Reset()
+	void NetQueueObjectData::Reset(uint8_t InId /*= -1*/)
 	{
-		Id = -1;
+		Id = InId;
 		//serialization::NetObjectSerializationCache::Get().ClearNetObjectData(Id);
 		Object.reset();
 		TimeSent = 0;
 		SpaceCount = 1;
+	}
+
+	NetQueueObjectData& NetQueueObjectData::operator=(NetObjectPtr InObject)
+	{
+		assert(Id != -1);
+		Object = InObject;
+		TimeSent = 0;
+		SpaceCount = 1;
+
+		return *this;
 	}
 
 	serialization::NetObjectDataPtr NetQueueObjectData::GetObjectData() const
@@ -42,8 +52,14 @@ namespace proto
 		TimeSent = utils::Time::NowMs();
 	}
 
-	bool NetQueueObjectData::HasBeenSentLast(float TimeOffsetSec)
+	bool NetQueueObjectData::NeedsSendingAccordingToFrequency()
 	{
-		return utils::Time::NowMs() - TimeSent < (TimeOffsetSec*1000.0f);
+		assert(Object);
+		return HasBeenSentLast(Object->GetUpdateFrequency());
+	}
+
+	bool NetQueueObjectData::HasBeenSentLast(int64_t TimeOffsetMs)
+	{
+		return utils::Time::NowMs() - (int64_t)TimeSent < TimeOffsetMs;
 	}
 }

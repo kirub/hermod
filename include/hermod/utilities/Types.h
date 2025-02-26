@@ -29,6 +29,9 @@ namespace proto
 	typedef class NetObjectQueue NetObjectQueue256;
 }
 
+typedef std::shared_ptr<class IProtocol> ProtocolPtr;
+typedef std::shared_ptr<class IConnection> ConnectionPtr;
+
 enum EReliability
 {
 	Unreliable,

@@ -12,6 +12,7 @@ namespace proto
 		: CurrentQueueIdx(0)
 		, OldUnackedId(0)
 	{
+		Clear();
 	}
 
 	int NetObjectQueue::GetIdxFromId(int Id) const
@@ -34,9 +35,11 @@ namespace proto
 
 	void NetObjectQueue::Clear()
 	{
+		uint8_t Id = 0;
 		for (NetQueueObjectData* ItData = Queue; ItData != (Queue+QueueSizeMax); ++ItData)
 		{
-			ItData->Reset();
+			ItData->Reset(Id);
+			++Id;
 		}
 	}
 	int32_t NetObjectQueue::Size() const
@@ -47,6 +50,12 @@ namespace proto
 	bool NetObjectQueue::Empty() const
 	{
 		return Size() == 0;
+	}
+	
+	void NetObjectQueue::Advance(iterator Target)
+	{
+		iterator::difference_type Amount = std::distance(begin(), Target);
+		CurrentQueueIdx += (int)Amount;
 	}
 	
 	void NetObjectQueue::OnMessagesAcked(std::vector<int> Ids)
@@ -132,7 +141,7 @@ namespace proto
 		while(Idx < CurrentQueueIdx)
 		{
 			NetQueueObjectData& Message = Queue[Idx];
-			if (!Message.HasBeenSentLast(0.1f))
+			if (!Message.NeedsSendingAccordingToFrequency())
 			{
 				serialization::NetObjectDataPtr ObjectData = Message.GetObjectData();
 				if(ObjectData && OutStream.GetBytesRemaining() > (ObjectData->BufferSize + 1))

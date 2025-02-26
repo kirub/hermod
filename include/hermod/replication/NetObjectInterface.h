@@ -51,6 +51,9 @@ public:
 	bool IsDirty() const;
 	void SetDirty(bool InDirtyFlag, bool SetAllProperty = false);
 
+	int64_t GetUpdateFrequency() const;
+
+	virtual bool IsRelevantFor(const IConnection& InConnection) const;
 	virtual void OnReceived() {}
 private:
 	virtual bool SerializeImpl(serialization::IStream& Stream);
@@ -62,6 +65,7 @@ private:
 #pragma warning(pop)
 	ENetObjectType				NetObjectType;
 	bool						IsDirtyFlag;
+	uint8_t						UpdateFrequency;
 }; 
 
 class INetRPC

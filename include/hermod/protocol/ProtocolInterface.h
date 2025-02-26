@@ -10,69 +10,6 @@ namespace serialization
 	class IStream;
 }
 
-template<typename Signature>
-class callable;
-
-template < typename R, typename... TArgs>
-class callable<R(TArgs...)>
-{
-public:
-	using return_type = R;
-	using signature = R(TArgs...);
-
-	callable()
-		: Callback(nullptr)
-	{ }
-
-	return_type operator()(TArgs... params) const
-	{
-		Callback(params...);
-	}
-
-	virtual bool IsValid() const
-	{
-		return Callback != nullptr;
-	}
-
-	operator bool() const
-	{
-		return IsValid();
-	}
-
-protected:
-	signature Callback;
-};
-/*
-template < typename InOwnerType, typename InReturnType, typename... TArgs>
-class CallableWithOwner
-	: public Callable<InReturnType, TArgs...>
-{
-public:
-	using OwnerType = InOwnerType;
-	using ReturnType = InReturnType;
-	using CallbackTypeWithOwner = ReturnType(OwnerType::*)(TArgs...);
-
-	CallableWithOwner(OwnerType& InOwner, CallbackTypeWithOwner InCallback)
-		: Callable<ReturnType, TArgs...>(nullptr)
-		, Owner(InOwner)
-		, CallbackWithOwner(InCallback)
-	{ }
-
-	virtual ReturnType Call(TArgs... Args) const
-	{
-		return (Owner.*CallbackWithOwner)(Args...);
-	}
-
-	virtual bool IsValid() const
-	{
-		return CallbackWithOwner != nullptr;
-	}
-private:
-
-	OwnerType& Owner;
-	CallbackTypeWithOwner CallbackWithOwner;
-};
-*/
 class HERMOD_API IProtocol
 {
 public:

@@ -15,6 +15,7 @@ namespace proto
 		: Properties()
 		, NetObjectType(InNetObjectType)
 		, NetId(serialization::NetIdMapping::Get().GetOrAssignedNetId(this))
+		, UpdateFrequency(10)
 	{
 	}
 
@@ -45,6 +46,15 @@ namespace proto
 	bool INetObject::SerializeImpl(serialization::IStream& Stream)
 	{
 		return true;
+	}
+	bool INetObject::IsRelevantFor(const IConnection& InConnection) const
+	{
+		return true;
+	}
+
+	int64_t INetObject::GetUpdateFrequency() const
+	{
+		return 1000.0f / (float)UpdateFrequency;
 	}
 
 	bool INetObject::Serialize(serialization::IStream& Stream, std::optional<NetObjectManager::PropertiesListenerContainer> Mapper)

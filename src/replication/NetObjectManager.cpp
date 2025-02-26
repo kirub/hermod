@@ -35,17 +35,9 @@ NetObjectManager::NetObjectType NetObjectManager::Instantiate(const uint32_t Obj
     return std::shared_ptr<proto::INetObject>(itFound->second());
 }
 
-void NetObjectManager::ReplicateObjects(std::vector < std::shared_ptr < IConnection >> Connections)
+void NetObjectManager::ReplicateObjects(std::vector < ConnectionPtr > Connections)
 {
-    for (std::shared_ptr<IConnection> Connection : Connections)
-    {
-        std::vector< std::shared_ptr<proto::INetObject>> NetObjectListFiltered;// = Connection->BuildConsiderList(NetObjects);
-
-        for (std::shared_ptr<proto::INetObject> NetObject : NetObjectListFiltered)
-        {
-            Connection->Send(NetObject);
-        }
-    }
+    for_each(Connections.begin(), Connections.end(), std::bind(&IConnection::BuildConsiderList, std::placeholders::_1, NetObjects));
 }
 
 std::optional<NetObjectManager::PropertiesListenerContainer> NetObjectManager::GetPropertiesListeners(proto::INetObject& NetObject) const
