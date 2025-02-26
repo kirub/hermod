@@ -28,17 +28,9 @@ protected:
     }
 
     template < typename T>
-    void SendAndTestEquality(T& NetObject, EReliability InReliability)
+    void SendAndTest(T& NetObject)
     {
-        Connection.OnReceiveObject(std::bind(&TestFixtureReliability::OnReceiveObject<T>, this, std::placeholders::_1, NetObject));
-        ASSERT_TRUE(Connection.Send(NetObject, InReliability));
-    }
-
-    template < typename T>
-    void SendAndTest(T& NetObject, EReliability InReliability, IConnection::OnReceiveObjectFunctor InTest)
-    {
-        Connection.OnReceiveObject(InTest);
-        ASSERT_TRUE(Connection.Send(NetObject, InReliability));
+        ASSERT_TRUE(Connection.Send(NetObject));
     }
 
     ConnectionTestableWithMockSocket Connection;

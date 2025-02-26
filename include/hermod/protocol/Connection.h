@@ -2,7 +2,6 @@
 
 #include "ConnectionInterface.h"
 #include "hermod/protocol/Protocol.h"
-#include "hermod/protocol/Protocol2.h"
 #include "hermod/protocol/FragmentHandler.h"
 #include "hermod/protocol/NetObjectQueue.h"
 
@@ -20,32 +19,31 @@ namespace proto
 	class FragmentHandler;
 }
 
-template < TSocket SocketType, TProtocol ProtocolType>
 class Connection
 	: public IConnection
 {
 public:
+	using ProtocolPtr = std::shared_ptr<IProtocol>;
+
 	using IConnection::Send;
 
-	Connection(unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
-	Connection(Address InRemoteEndpoint, unsigned short InboundPort, TimeMs InConnectionTimeoutMs);
-	virtual ~Connection();
+	HERMOD_API Connection(ProtocolPtr InProtocol, TimeMs InConnectionTimeoutMs);
+	HERMOD_API Connection(ProtocolPtr InProtocol, Address InRemoteEndpoint, TimeMs InConnectionTimeoutMs);
+	HERMOD_API virtual ~Connection();
 
-	virtual bool Send(proto::NetObjectPtr InNetObject) override;
-	virtual bool Send(serialization::WriteStream& Stream) override;
-	virtual proto::NetObjectPtr Receive();
-	bool Send(unsigned char* Data, std::size_t Len);
-	virtual const unsigned char* GetData() override;
-	virtual proto::NetObjectQueue256& GetNetObjectQueue(ObjectQueueType InQueueType) override;
-	virtual void OnPacketReceived(serialization::ReadStream& InStream) override;
+	HERMOD_API virtual bool Send(proto::NetObjectPtr InNetObject) override;
+	HERMOD_API virtual proto::NetObjectPtr Receive();
+	HERMOD_API virtual bool OnPacketReceived(serialization::ReadStream& InStream) override;
+	HERMOD_API virtual bool OnPacketSent(serialization::WriteStream& InStream, int32_t& MessageIncludedCount) override;
 
-	virtual class Address const & GetRemoteEndpoint() const override;
+	HERMOD_API virtual proto::NetObjectQueue256& GetNetObjectQueue(ObjectQueueType InQueueType) override;
+	HERMOD_API virtual class Address const & GetRemoteEndpoint() const override;
 
-	bool IsConnected() const;
-	bool IsClient() const;
-	bool IsServer() const;
+	HERMOD_API bool IsConnected() const;
+	HERMOD_API bool IsClient() const;
+	HERMOD_API bool IsServer() const;
 
-	Error Update(TimeMs timeDelta);
+	HERMOD_API void Update(TimeMs timeDelta);
 
 protected:
 	void OnMessageReceived(serialization::ReadStream& Stream, uint8_t NetObjectOrderId = 255, uint8_t NetObjectIdSpaceCount = 1);
@@ -53,19 +51,18 @@ protected:
 	void Resend(uint16_t InPacketId);
 	bool Flush();
 
+	uint8_t GetPacketIdx(uint16_t SequenceId) const;
+
+	static const int PacketSentHistorySize = 255;
+
 	const TimeMs ConnectionTimeoutSec;
 	TimeMs LastPacketReceiveTimeout;
 	bool IsServerConnection;
 	serialization::ReadStream Reader;
 	serialization::WriteStream Writer;
+	std::shared_ptr<IProtocol> Protocol;
 	Address RemoteEndpoint;
-	std::unique_ptr<ISocket> Socket;
-	std::unique_ptr<IProtocol> MyProtocol;
 	proto::FragmentHandler Fragments;
 	proto::NetObjectQueue256 NetObjectQueues[ObjectQueueType::Count];
-
-	static const int PacketSentHistorySize = 64;
-	serialization::WriteStream PacketsSent[PacketSentHistorySize];
+	std::vector<uint8_t> MessageIds[PacketSentHistorySize];
 };
-
-#include "Connection.inl"

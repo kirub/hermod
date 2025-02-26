@@ -8,6 +8,7 @@ class HERMOD_API UDPSocket
 	: public ISocket
 {
 public:
+	using ISocket::Send;
 
 	UDPSocket();
 	UDPSocket(unsigned short port);

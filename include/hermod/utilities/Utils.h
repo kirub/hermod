@@ -1,13 +1,60 @@
 #pragma once
 
 #include <hermod/platform/Platform.h>
+#include <hermod/utilities/TypeTraits.h>
 
 #include <vector>
 #include <string>
 #include <cassert>
-#include <bit>
+
 #include <bitset>
 #include <chrono>
+
+#if !_HAS_CXX20
+template <bool Predicate, typename Result = void>
+class enable_if;
+
+template <typename Result>
+class enable_if<true, Result> {
+public:
+	typedef Result Type;
+};
+
+template <typename Result>
+class enable_if<false, Result> {};
+
+template <class T>
+constexpr underlying_type<T> to_underlying(T _Value)
+{
+	return static_cast<underlying_type<T>>(_Value);
+}
+
+template <unsigned int N>
+constexpr int countr_one(std::bitset<N> x)
+{
+	int value = 0;
+	while (x[x.size()-1])
+	{
+		value += 1;
+		x >>= 1;
+	}
+	return value;
+}
+template <unsigned int N>
+constexpr int countl_zero(std::bitset<N> x) {
+	int value = 0;
+	while (!(x[0])) {
+		value += 1;
+		x <<= 1;
+	}
+	return value;
+}
+#else
+#include <bit>
+using std::countr_one;
+using std::countl_zero;
+using std::to_underlying;
+#endif
 
 #define PROTO_SERIALIZE_CHECKS              1
 //#define PROTO_DEBUG_PACKET_LEAKS            0
@@ -108,11 +155,11 @@ namespace utils
         }
     };  
 
-    template <std::size_t Size, std::derived_from<IIntrusiveElement<Size>> T >
+    template <std::size_t Size /*, std::derived_from<IIntrusiveElement<Size>> T*/>
     class FixedIntrusiveArray
     {
         //static_assert(Size <= (sizeof(unsigned long long) * 8), "Max size is ULLONG_MAX * 8");
-        using ValueType = T; // IIntrusiveElement<Size>
+        using ValueType = IIntrusiveElement<Size>;
         using Pointer = ValueType*;
         using Reference = ValueType&;
 
@@ -143,12 +190,12 @@ namespace utils
                 uint64_t CurWord = ValidIndexes._Getword(Idx);
                 if (CompFreeIndex && NextFreeIndex == (SizeBitOfWord * Idx))
                 {
-                    NextFreeIndex += std::countr_one(CurWord);
+                    NextFreeIndex += countr_one(CurWord);
                 }
 
                 if (CompNum)
                 {
-                    int CurRZerosInWord = std::countl_zero(CurWord);
+                    int CurRZerosInWord = countl_zero(CurWord);
                     if (CurRZerosInWord != SizeBitOfWord)
                     {
                         CurRZeros = 0;

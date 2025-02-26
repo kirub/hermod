@@ -10,7 +10,7 @@ namespace serialization
 }
 namespace proto
 {	
-	class HERMOD_API NetObjectQueue
+	class NetObjectQueue
 	{
 		static const int QueueSizeMax = 255;
 
@@ -44,7 +44,7 @@ namespace proto
 		int UpdateOldestUnackedId();
 
         NetObjectPtr DequeueObject();
-		int GetSendBuffer(serialization::WriteStream& OutStream, std::vector<int>& Ids);
+		int GetSendBuffer(serialization::WriteStream& OutStream, std::vector<uint8_t>& Ids);
 
         class iterator {
         public:

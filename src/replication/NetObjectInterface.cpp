@@ -33,9 +33,9 @@ namespace proto
 		IsDirtyFlag = InDirtyFlag;
 		if (SetAllProperty)
 		{
-			for (INetProperty* Property : Properties)
+			for (utils::IIntrusiveElement<255>* Element : Properties)
 			{
-				if (Property)
+				if (INetProperty* Property = (INetProperty*)Element)
 				{
 					Property->SetDirty(InDirtyFlag);
 				}
@@ -75,9 +75,9 @@ namespace proto
 			Stream.Serialize(NetId);
 		}
 
-		for (INetProperty* Property : Properties)
+		for (utils::IIntrusiveElement<255>* Element : Properties)
 		{
-			if (Property)
+			if (INetProperty* Property = (INetProperty*)Element)
 			{
 				HasError = !Property->Serialize(Stream);
 				if (HasError)

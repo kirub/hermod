@@ -6,13 +6,11 @@
 #include "ProtocolTestable.h"
 
 class ConnectionTestableWithMockSocket
-	: public Connection<MockSocket, ProtocolTestable>
+	: public Connection
 {
 public:
-	using Super = Connection<MockSocket, ProtocolTestable>;
-	static const int InBoundPort = 30000;
-
-	ProtocolTestable* ProtoTest;
+	using Super = Connection;
+	static const int ProtocolId = 1;
 
 	enum EPacketLostBehaviour
 	{
@@ -22,13 +20,10 @@ public:
 	};
 
 	ConnectionTestableWithMockSocket(TimeMs InConnectionTimeout = 10000)
-		: Super(InBoundPort, InConnectionTimeout)
+		: Super(std::make_shared<ProtocolTestable>(ProtocolId), InConnectionTimeout)
 		, DropStrategy(None)
-		, ProtoTest(nullptr)
 		, LastSentPacketId(Protocol::InvalidSequenceId)
 	{
-
-		ProtoTest = (ProtocolTestable*)MyProtocol.get();
 	}
 
 	uint16_t GetLastPacketId() const
