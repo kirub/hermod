@@ -36,7 +36,7 @@ public:
 	HERMOD_API virtual bool OnPacketReceived(serialization::ReadStream& InStream) override;
 	HERMOD_API virtual bool OnPacketSent(serialization::WriteStream& InStream, int32_t& MessageIncludedCount) override;
 
-	HERMOD_API virtual proto::NetObjectQueue256& GetNetObjectQueue(ObjectQueueType InQueueType) override;
+	HERMOD_API virtual proto::NetObjectQueue& GetNetObjectQueue(ObjectQueueType InQueueType) override;
 	HERMOD_API virtual class Address const & GetRemoteEndpoint() const override;
 
 	HERMOD_API bool IsConnected() const;
@@ -63,6 +63,6 @@ protected:
 	std::shared_ptr<IProtocol> Protocol;
 	Address RemoteEndpoint;
 	proto::FragmentHandler Fragments;
-	proto::NetObjectQueue256 NetObjectQueues[ObjectQueueType::Count];
+	proto::NetObjectQueue NetObjectQueues[ObjectQueueType::Count];
 	std::vector<uint8_t> MessageIds[PacketSentHistorySize];
 };

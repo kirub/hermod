@@ -21,7 +21,7 @@ class NetObjectManager
 public:
     using NetObjectType = std::shared_ptr<proto::INetObject>;
     using ObjectConstructor = std::function<proto::INetObject*()>;
-    template < std::derived_from<proto::INetProperty> T>
+    template < typename T>
     using PropertyListenerWithT = std::function<void(const T&)>;
     using PropertyListener = std::function<void(const proto::INetProperty&)>;
     using ObjectsConstructorContainer = std::map< uint32_t, ObjectConstructor>;
@@ -30,13 +30,13 @@ public:
 
     HERMOD_API static NetObjectManager& Get();
 
-    template < std::derived_from<proto::INetObject> T>
-    void Register(const ObjectConstructor& Contructor = []() { return new T(); });
-    template < std::derived_from<proto::INetObject> T>
-    void Unregister();
+    template < typename T>
+    typename typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type Register(const ObjectConstructor& Contructor = []() { return new T(); });
+    template < typename T>
+    typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type Unregister();
 
 
-    template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>
+    template < typename NetObject, typename PropType, typename enable_if<is_derived_from<NetObject, proto::INetObject>::Value && is_derived_from<PropType, proto::INetProperty>::Value>::Type >
     bool RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener);
 
     void Unregister(const uint32_t ObjectClassId);

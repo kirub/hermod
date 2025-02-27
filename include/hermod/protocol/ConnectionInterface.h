@@ -45,7 +45,7 @@ public:
 	HERMOD_API virtual ~IConnection()
 	{ }
 
-	template < std::derived_from<proto::INetObject> T>
+	template < typename T, typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type>
 	bool Send(T InNetObject)
 	{
 		return Send(std::static_pointer_cast<proto::INetObject>(std::make_shared<T>(std::move(InNetObject))));

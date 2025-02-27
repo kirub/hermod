@@ -16,13 +16,13 @@ namespace proto
 
 namespace serialization
 {
-	template_with_concept_base(NetPropertySettings, PropertyType,
+	template_with_concept_base(NetPropertySettings, PropertyType, 
 		std::unsigned_integral<PropertyType> || std::signed_integral<PropertyType> || std::floating_point<PropertyType> || ArrayType<PropertyType> ||
-		Pointer<PropertyType> || StringType<PropertyType> || Buffer<PropertyType> || Boolean<PropertyType> || Enumeration<PropertyType> )
+		Pointer<PropertyType> || StringType<PropertyType> || Buffer<PropertyType> || Boolean<PropertyType> || Enumeration<PropertyType>)
 	{
 	};
 
-	template_with_concept_declare(is_signed_integral_type, NetPropertySettings, T)
+	template_with_concept_declare(std::signed_integral, is_signed_integral_type<, NetPropertySettings, T)
 	{
 		T Min;
 		T Max;
@@ -35,7 +35,7 @@ namespace serialization
 		}
 	};
 
-	template_with_concept_declare(is_unsigned_integral_type, NetPropertySettings, T)
+	template_with_concept_declare(std::unsigned_integral, is_unsigned_integral_type < , NetPropertySettings, T)
 	{
 		T Max;
 
@@ -47,7 +47,7 @@ namespace serialization
 		}
 	};
 
-	template_with_concept_declare(ArrayType, NetPropertySettings, T)
+	template_with_concept_declare(ArrayType, ArrayType<, NetPropertySettings, T)
 	{
 		T Max[std::rank_v<T>];
 
@@ -61,7 +61,7 @@ namespace serialization
 
 	};
 
-	template_with_concept_declare(Enumeration, NetPropertySettings, T)
+	template_with_concept_declare(Enumeration, Enumeration<, NetPropertySettings, T)
 	{
 		std::underlying_type_t<T> Max;
 
@@ -76,7 +76,7 @@ namespace serialization
 		}
 	};
 
-	template_with_concept_declare(Float, NetPropertySettings, T)
+	template_with_concept_declare(Float, Float<, NetPropertySettings, T)
 	{
 
 		T Min = std::numeric_limits<T>::min();
@@ -105,7 +105,7 @@ namespace serialization
 		}
 	};
 
-	template_with_concept_declare(StringType, NetPropertySettings, T)
+	template_with_concept_declare(StringType, StringType<, NetPropertySettings, T)
 	{
 		std::size_t Length = 0;
 
@@ -127,7 +127,7 @@ namespace serialization
 		}
 	};
 
-	template_with_concept_declare(Buffer, NetPropertySettings, T)
+	template_with_concept_declare(Buffer, Buffer<, NetPropertySettings, T)
 	{
 		std::size_t Length = 0;
 

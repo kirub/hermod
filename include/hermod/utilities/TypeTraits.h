@@ -234,19 +234,23 @@ struct is_char_type<wchar_t> {
 */
 template <typename T>
 struct is_pointer_type {
-	enum { Value = false };
+	static constexpr bool Value = false;
+	//enum { Value = false };
 };
 template <typename T>
 struct is_pointer_type<T *> {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	//enum { Value = true };
 };
 template <typename T>
 struct is_pointer_type<const T *> {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	//enum { Value = true };
 };
 template <typename T>
 struct is_pointer_type<const T *const> {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	//enum { Value = true };
 };
 template <typename T>
 struct is_pointer_type<T *volatile> {
@@ -254,7 +258,8 @@ struct is_pointer_type<T *volatile> {
 };
 template <typename T>
 struct is_pointer_type<T *const volatile> {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	//enum { Value = true };
 };
 
 /**
@@ -854,7 +859,7 @@ struct pack_has_type_or_derived_type<Base, TypeToCheck, OtherTypesToCheck...> {
 
 template <typename T>
 static constexpr bool is_always_false = false;
-
+/*
 template <bool _First_value, class _First, class... _Rest>
 struct _Disjunction { // handle true trait or last trait
 	using type = _First;
@@ -871,7 +876,7 @@ struct disjunction : false_type {}; // If _Traits is empty, false_type
 template <class _First, class... _Rest>
 struct disjunction<_First, _Rest...> : _Disjunction<static_cast<bool>(_First::Value), _First, _Rest...>::type {
 	// the first true trait in _Traits, or the last trait if none are true
-};
+};*/
 
 /*
 template <typename T>
@@ -881,20 +886,21 @@ struct array_size<std::array<T, N>> : std::tuple_size<std::array<T, N>> {};*/
 
 template <typename T>
 struct is_string
-		: public disjunction<
-				  is_same<const char *, unqualified<T>>,
-				  is_same<char *, unqualified<T>>,
-				  is_same<std::string, unqualified<T>> >
+		: public std::disjunction<
+				  std::is_same<const char *, std::decay_t<T>>,
+				  std::is_same<char *, std::decay_t<T>>,
+				  std::is_same<std::string, std::decay_t<T>> >
 {
 };
 
 template <typename T>
 struct is_raw_buffer
-		: public disjunction<
-				  is_same<const unsigned char *, unqualified<T>>,
-				  is_same<unsigned char *, unqualified<T>>,
-				  is_same<uint8_t *, unqualified<T>>,
-				  is_same<const uint8_t *, unqualified<T>>> {
+		: public std::disjunction<
+				  std::is_same<const unsigned char *, std::decay_t<T>>,
+				  std::is_same<unsigned char *, std::decay_t<T>>,
+				  std::is_same<uint8_t *, std::decay_t<T>>,
+				  std::is_same<const uint8_t *, std::decay_t<T>>>
+{
 };
 			
 
@@ -923,11 +929,11 @@ struct Enumeration {
 };
 template <typename BufferType>
 struct Buffer {
-	static constexpr bool Value = is_raw_buffer<BufferType>::Value && !is_string<BufferType>::Value && !Enumeration<BufferType>::Value;
+	static constexpr bool Value = is_raw_buffer<BufferType>::value && !is_string<BufferType>::value && !Enumeration<BufferType>::Value;
 };
 template <typename TStringType>
 struct StringType {
-	static constexpr bool Value = (is_same<std::string, TStringType>::Value || is_string<TStringType>::Value ) && !Buffer<TStringType>::Value;
+	static constexpr bool Value = (is_same<std::string, TStringType>::Value || is_string<TStringType>::value ) && !Buffer<TStringType>::Value;
 };
 template <typename StringBufferType>
 struct StringBuffer {
@@ -953,20 +959,20 @@ template <typename FloatType>			concept Float = std::floating_point<FloatType>;
 template <typename TArrayType>			concept ArrayType = std::is_bounded_array_v<TArrayType>;
 template <typename EnumType>			concept Enumeration = std::is_enum_v<EnumType>;
 template <typename BufferType>			concept Buffer = is_raw_buffer<BufferType>::value && !is_string<BufferType>::value && !Enumeration<BufferType>;
-template <typename TStringType>			concept StringType = is_string<TStringType>::value && !Buffer<TStringType>;
+template <typename TStringType>			concept StringType = (std::is_same<std::string, TStringType>::value || is_string<TStringType>::value) && !Buffer<TStringType>;
 template <typename StringBufferType>	concept StringBuffer = StringType<StringBufferType> && !std::is_same_v<StringBufferType, std::string>;
-template <typename PointerType>			concept Pointer = is_pointer_type<PointerType>::Value && !Buffer<PointerType> && !StringType<PointerType>;
+template <typename PointerType>			concept Pointer = !Buffer<PointerType> && !StringType<PointerType> && is_pointer_type<PointerType>::Value;
 template <typename BoolType>			concept Boolean = std::_Is_character_or_byte_or_bool<BoolType>::value && !std::integral<BoolType>;
 
 #endif
 
 
 #if _HAS_CXX20
-#define template_with_concept_declare(ConceptTypeName, ClassName, TemplateTypeName) \
-	template <ConceptTypeName TemplateTypeName>                          \
+#define template_with_concept_declare(ConceptType, EnableIfType, ClassName, TemplateTypeName) \
+	template <ConceptType TemplateTypeName>                          \
 	struct ClassName<TemplateTypeName>
 
-#define template_with_concept_base(ClassName, Requirements, TemplateTypeName) \
+#define template_with_concept_base(ClassName, TemplateTypeName, Requirements) \
 	template <typename TemplateTypeName>						\
 	requires Requirements									\
 	struct ClassName
@@ -975,16 +981,16 @@ template <typename BoolType>			concept Boolean = std::_Is_character_or_byte_or_b
 	template <ConceptTypeName TemplateTypeName>
 
 #else
-#define template_with_concept_declare(ConceptTypeName, ClassName, TemplateTypeName) \
+#define template_with_concept_declare(ConceptType, EnableIfType, ClassName, TemplateTypeName) \
 	template <typename TemplateTypeName>                                 \
-	struct ClassName<TemplateTypeName, typename enable_if<ConceptTypeName<TemplateTypeName>::Value>::Type>
+	struct ClassName<TemplateTypeName, typename enable_if<EnableIfType TemplateTypeName>::Value>::Type>
 
 #define template_with_concept_base(ClassName, TemplateTypeName, Requirements) \
 	template <typename TemplateTypeName, typename = void>       \
 	struct ClassName
 
-#define template_with_concept_define(ConceptTypeName, TemplateTypeName)				\
-	template <typename TemplateTypeName, typename enable_if<ConceptTypeName<TemplateTypeName>::Value>::Type>
+#define template_with_concept_define(ConceptTypeName, EnableIfType, TemplateTypeName)				\
+	template <typename TemplateTypeName, typename enable_if<EnableIfType TemplateTypeName>::Value>::Type>
 #endif
 
 // Additional Type Traits

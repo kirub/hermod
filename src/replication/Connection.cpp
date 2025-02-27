@@ -22,7 +22,6 @@ Connection::Connection(ProtocolPtr InProtocol, Address RemoteEndpoint, TimeMs In
     , Writer(MaxMTUSize)
     , Reader(MaxMTUSize)
     , Protocol(InProtocol)
-    , NetObjectQueues({ std::make_shared<proto::NetObjectQueue256>(),std::make_shared<proto::NetObjectQueue256>() })
 {
 }
 

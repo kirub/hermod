@@ -66,7 +66,7 @@ namespace serialization
             return false;
         }
 
-        template_with_concept_define(Boolean, T)
+        template_with_concept_define(Boolean, Boolean<, T)
 		//template <typename T, typename enable_if<Boolean<T>::Value>::Type>
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
@@ -87,7 +87,7 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(Pointer, T)
+		template_with_concept_define(Pointer, Pointer<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             NetObjectId Max = InvalidNetObjectId & PTR_TO_ID_MASK;
@@ -125,7 +125,7 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(Signed, T)
+		template_with_concept_define(Signed, Signed<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             assert(Properties.Min < Properties.Max);
@@ -166,13 +166,13 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(Unsigned, T)
+		template_with_concept_define(Unsigned, Unsigned<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             return serialize_bits(InOutValue, utils::bits_required(0, Properties.Max));
         }
 
-		template_with_concept_define(Float, T)
+		template_with_concept_define(Float, Float<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             bool ReturnValue = true;
@@ -256,7 +256,7 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(StringBuffer, T)
+		template_with_concept_define(StringBuffer, StringBuffer<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             if (IsWriting())
@@ -273,7 +273,7 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(Buffer, T)
+		template_with_concept_define(Buffer, Buffer<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             if (IsWriting())
@@ -286,7 +286,7 @@ namespace serialization
             return true;
         }
 
-		template_with_concept_define(Enumeration, T)
+		template_with_concept_define(Enumeration, Enumeration<, T)
         bool Serialize(T& InOutValue, const serialization::NetPropertySettings<T>& Properties = serialization::NetPropertySettings<T>())
         {
             static_assert(std::is_standard_layout_v<std::underlying_type<T>>, "Enumeration underlying type must be pod");

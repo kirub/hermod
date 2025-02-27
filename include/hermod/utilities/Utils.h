@@ -40,6 +40,20 @@ constexpr int countr_one(std::bitset<N> x)
 	}
 	return value;
 }
+template <typename T>
+constexpr typename enable_if<is_unsigned_integral_type<T>::Value, int>::Type countr_one(T x)
+{
+    constexpr unsigned int N = sizeof(x) * 8;
+    int Idx = 0;
+    int value = 0;
+    while (Idx < N && ((x & 1)==1))
+    {
+        value += 1;
+        x >>= 1;
+        ++Idx;
+    }
+    return value;
+}
 template <unsigned int N>
 constexpr int countl_zero(std::bitset<N> x) {
 	int value = 0;
@@ -48,6 +62,22 @@ constexpr int countl_zero(std::bitset<N> x) {
 		x <<= 1;
 	}
 	return value;
+}
+template <typename T>
+constexpr typename enable_if<is_unsigned_integral_type<T>::Value, int>::Type countl_zero(T x)
+{
+    constexpr unsigned int NBytes = sizeof(T);
+    constexpr unsigned int N = NBytes * sizeof(char);
+    constexpr T Comp = 1 << (N - 1);
+    int Idx = 0;
+    int value = 0;
+    while (Idx < N && ((x & Comp)==0))
+    {
+        value += 1;
+        x <<= 1;
+        ++Idx;
+    }
+    return value;
 }
 #else
 #include <bit>

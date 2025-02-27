@@ -17,7 +17,7 @@ namespace serialization
     NetObjectId NetIdMapping::GetOrAssignedNetId(ObjectInstanceToIdContainer::key_type Value)
     {
         auto [ItElement, Inserted] = ObjectToIdMap.insert({ Value, InvalidNetObjectId });
-        assert(!Inserted || !IdToObjectMap.contains(ItElement->second));
+        assert(!Inserted || IdToObjectMap.find(ItElement->second) == IdToObjectMap.end());
         if (Inserted)
         {
             ItElement->second = PTR_TO_ID(Value);
@@ -30,7 +30,7 @@ namespace serialization
     {
         if (ObjectIdToInstanceContainer::const_iterator ItElement = IdToObjectMap.find(Value); ItElement != IdToObjectMap.end())
         {
-            assert(ObjectToIdMap.contains(ItElement->second));
+            assert(ObjectToIdMap.find(ItElement->second) != ObjectToIdMap.end());
             return ItElement->second;
         }
 
