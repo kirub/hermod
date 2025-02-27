@@ -60,8 +60,8 @@ protected:
         EXPECT_EQ(PacketReceived, SentPacket);
     }
 
-    template < uint8_t NumMessages, std::derived_from<proto::INetObject> T>
-    void SendMessages(const T& InitialMessage, std::function<T(const T&)> Transform)
+    template < uint8_t NumMessages, typename T>
+    typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type SendMessages(const T& InitialMessage, std::function<T(const T&)> Transform)
     {
         T MessageTest = InitialMessage;
         for (uint8_t MessageIdx = 0; MessageIdx < NumMessages; ++MessageIdx)
@@ -71,8 +71,8 @@ protected:
         }
     }
 
-    template < uint8_t NumMessages, std::derived_from<proto::INetObject> T>
-    void ReadMessages(const T& InitialMessage, std::function<T(const T&)> Transform)
+    template < uint8_t NumMessages, typename T>
+    typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type ReadMessages(const T& InitialMessage, std::function<T(const T&)> Transform)
     {
         T MessageTest = InitialMessage;
         for (uint8_t MessageIdx = 0; MessageIdx < NumMessages; ++MessageIdx)

@@ -82,19 +82,18 @@ namespace proto
 		delete[] DataStart;
 	}
 
-	serialization::ReadStream FragmentHandler::Gather()
+	void FragmentHandler::Gather(serialization::ReadStream& OutStream) const
 	{
-		int MaxSize = MaxFragmentSize * NumFragments;
-		serialization::ReadStream Stream(MaxSize);
-		unsigned char*  DestBuffer = (unsigned char*)Stream.GetData();
+		//int MaxSize = MaxFragmentSize * NumFragments;
+		//serialization::ReadStream Stream(MaxSize);
+		unsigned char*  DestBuffer = (unsigned char*)OutStream.GetData();
 		int Offset = 0;
 		for (FragmentPtr InFragment : Entries)
 		{
-			assert(Offset + (int)InFragment->DataSize <= MaxSize);
+			assert(!OutStream.WouldOverflow((int)InFragment->DataSize));
 			memcpy(DestBuffer + Offset, InFragment->Data, InFragment->DataSize);
 			Offset += (int)InFragment->DataSize;
 		}	
-		return Stream;
 	}
 
 	bool FragmentHandler::IsComplete() const

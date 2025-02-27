@@ -35,7 +35,7 @@ namespace proto
 		FragmentHandler(unsigned char* InBuffer, int BufferSize, const std::size_t& MaxFragmentSize);
 		FragmentHandler(proto::INetObject& InNetObject, const int BufferSize, const std::size_t& MaxFragmentSize);
 
-		serialization::ReadStream Gather();
+		void Gather(serialization::ReadStream& OutStream) const;
 
 		bool IsComplete() const;
 

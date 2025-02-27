@@ -741,13 +741,13 @@ struct is_bitwise_constructible<int64_t, uint64_t> {
 	public:                                                                    \
 		enum { Value = sizeof(MemberTest<T>(nullptr)) == sizeof(char) };       \
 	};
-
+/*
 template <typename T>
 struct is_enum {
 	enum { Value = IS_ENUM(T) };
 };
-
-template <class T, bool = is_enum<T>::Value>
+*/
+template <class T, bool = std::is_enum<T>::value>
 struct _underlying_struct {
     using type = __underlying_type(T);
 };
@@ -925,7 +925,7 @@ struct ArrayType {
 };
 template <typename EnumType>
 struct Enumeration {
-	static constexpr bool Value = is_enum<EnumType>::Value;
+	static constexpr bool Value = std::is_enum<EnumType>::value && !is_integral_type<EnumType>::Value;
 };
 template <typename BufferType>
 struct Buffer {

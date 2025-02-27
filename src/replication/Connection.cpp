@@ -150,7 +150,9 @@ void Connection::OnMessageReceived(serialization::ReadStream& InStream, uint8_t 
             Fragments.OnFragment(FragmentPtr);
             if (Fragments.IsComplete())
             {
-                serialization::ReadStream BunchStream = Fragments.Gather();
+                int MaxSize = MaxFragmentSize * (int)Fragments.Entries.size();
+                serialization::ReadStream BunchStream(MaxSize);
+                Fragments.Gather(BunchStream);
                 OnMessageReceived(BunchStream, Fragments.Entries[0]->MessageId, (uint8_t)Fragments.Entries.size());
                 Fragments.Reset();
             }
