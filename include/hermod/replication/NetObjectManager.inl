@@ -1,19 +1,19 @@
 
 #include <hermod/replication/NetPropertyInterface.h>
 
-template < std::derived_from<proto::INetObject> T>
-void NetObjectManager::Register(const ObjectConstructor& Contructor /*= []() { return new T(); }*/)
+template < typename T>
+typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type NetObjectManager::Register(const ObjectConstructor& Contructor /*= []() { return new T(); }*/)
 {
     Factory.insert({ T::NetObjectId::value, Contructor });
 }
-template < std::derived_from<proto::INetObject> T>
-void NetObjectManager::Unregister()
+template < typename T>
+typename enable_if<is_derived_from<T, proto::INetObject>::Value>::Type NetObjectManager::Unregister()
 {
     Factory.erase(T::NetObjectId::value);
 }
 
 
-template < std::derived_from<proto::INetObject> NetObject, std::derived_from<proto::INetProperty> PropType>
+template < typename NetObject, typename PropType, typename enable_if<is_derived_from<NetObject, proto::INetObject>::Value&& is_derived_from<PropType, proto::INetProperty>::Value>::Type >
 bool NetObjectManager::RegisterPropertyListener(const proto::INetProperty& Property, const PropertyListenerWithT<PropType>& Listener)
 {
     return ObjectListeners.insert({ NetObject::NetObjectId::value, { Property.GetIndex(), Listener} }).second;

@@ -81,16 +81,17 @@ namespace type {
 GENERATE_MEMBER_FUNCTION_CHECK(GetClassId, uint32_t, const)
 
 namespace type {
-/* template <typename T1, typename T2, typename = void>
-	static bool is_a(const T2 &NetObject);*/
+	/*template <typename T1, typename T2>
+	static bool is_a(const T2 &NetObject)
+	{ }*/
 
-	template <typename T1, typename T2, typename = typename enable_if<has_member_function_GetClassId<T1>::Value && has_member_function_GetClassId<T2>::Value>::Type>
-	static bool is_a(const T2 &NetObject) {
+	template <typename T1, typename T2>
+	static typename enable_if<has_member_function_GetClassId<T1>::Value && has_member_function_GetClassId<T2>::Value, bool>::Type is_a(const T2 &NetObject) {
 		return T1::NetObjectId::value == NetObject.GetClassId();
 	}
 
-	template <typename T1, uint32_t, typename = typename enable_if<has_member_function_GetClassId<T1>::Value>::Type>
-	static bool is_a(const uint32_t &NetObjectId) {
+	template <typename T1>
+	static typename enable_if<has_member_function_GetClassId<T1>::Value, bool>::Type is_a(const uint32_t &NetObjectId) {
 		return T1::NetObjectId::value == NetObjectId;
 	}
 } //namespace type

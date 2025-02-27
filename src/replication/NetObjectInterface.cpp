@@ -72,7 +72,7 @@ namespace proto
 
 		if (NetObjectType == Object)
 		{
-			Stream.Serialize(NetId);
+			Stream.Serialize<uint64_t>(NetId);
 		}
 
 		for (utils::IIntrusiveElement<255>* Element : Properties)

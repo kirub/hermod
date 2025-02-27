@@ -35,7 +35,7 @@ TEST_F(NetMessageFixture, Send1Message)
 
     proto::NetObjectPtr NetObject = NetHandlerServer.GetClientConnections()[0]->Receive();
     ASSERT_TRUE(NetObject);
-    EXPECT_EQ(Test, *static_pointer_cast<Vector2f>(NetObject));
+    EXPECT_EQ(Test, *std::static_pointer_cast<Vector2f>(NetObject));
 }
 
 

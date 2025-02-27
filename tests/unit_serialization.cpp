@@ -51,9 +51,9 @@ void UnitTest_SerializePrimitives(T TestValue)
     T OgTest(TestValue);
     T ReadTest;
 
-    Writer.Serialize(OgTest);
+    Writer.Serialize<T>(OgTest);
     memcpy((void*)Reader.GetData(), Writer.GetData(), MaxMTUSize);
-    Reader.Serialize(ReadTest);
+    Reader.Serialize<T>(ReadTest);
 
     EXPECT_EQ(Writer.GetDataSize(), Reader.GetDataSize());
     EXPECT_EQ(memcmp(Writer.GetData(), Reader.GetData(), Writer.GetDataSize()), 0);
@@ -111,8 +111,8 @@ void UnitTest_CompareStreamSerializePrimitives(serialization::IStream& Writer1, 
     Writer1.Reset();
     Writer2.Reset();
 
-    Writer1.Serialize(TestValue);
-    Writer2.Serialize(TestValue);
+    Writer1.Serialize<T>(TestValue);
+    Writer2.Serialize<T>(TestValue);
 
     EXPECT_EQ(Writer1.GetDataSize(), Writer2.GetDataSize());
 }

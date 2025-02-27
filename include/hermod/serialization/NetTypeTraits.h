@@ -6,10 +6,8 @@
 #include <hermod/platform/Platform.h>
 #include <hermod/utilities/Utils.h>
 
-#include <type_traits>
-#include <array>
+#include <hermod/utilities/TypeTraits.h>
 #include <string>
-#include <concepts>
 
 namespace proto
 {
@@ -18,85 +16,38 @@ namespace proto
 
 namespace serialization
 {
-	template <typename T>
-	struct array_size : std::extent<T> {};
-	template <typename T, size_t N>
-	struct array_size<std::array<T, N> > : std::tuple_size<std::array<T, N> > {};
-	template<typename T>
-	struct is_string
-		: public std::disjunction<
-		std::is_same<const char*, std::decay_t<T>>,
-		std::is_same<char*, std::decay_t<T>>,
-		std::is_same<std::string, std::decay_t<T>>
-		> {
-	};
-
-	template<typename T>
-	struct is_raw_buffer
-		: public std::disjunction<
-		std::is_same<const unsigned char*, std::decay_t<T>>,
-		std::is_same<unsigned char*, std::decay_t<T>>,
-		std::is_same<uint8_t*, std::decay_t<T>>,
-		std::is_same<const uint8_t*, std::decay_t<T>>
-		> {
-	};
-
-	//template <typename NumericType>		concept Numeric = std::is_arithmetic_v<NumericType>;
-	template <typename UnsignedType>		concept Unsigned = std::unsigned_integral<UnsignedType> && !std::is_same_v<UnsignedType, uint64_t>;
-	template <typename SignedType>			concept Signed = std::signed_integral<SignedType> && !std::is_same_v<SignedType, int64_t>;
-	template <typename ArrayType>			concept Array = std::is_bounded_array_v<ArrayType>;
-	template <typename EnumType>			concept Enumeration = std::is_enum_v<EnumType>;
-	template <typename BufferType>			concept Buffer = is_raw_buffer<BufferType>::value && !is_string<BufferType>::value && !Enumeration<BufferType>;
-	template <typename StringType>			concept String = is_string<StringType>::value && !Buffer< StringType>;
-	template <typename StringBufferType>	concept StringBuffer = String<StringBufferType> && !std::is_same_v<StringBufferType, std::string>;
-	template <typename PointerType>			concept Pointer = std::is_pointer_v<PointerType> && !Buffer<PointerType> && !String<PointerType>;
-	template <typename BoolType>			concept Boolean = std::_Is_character_or_byte_or_bool<BoolType>::value && !std::integral<BoolType>;
-
-	template < typename PropertyType >
-		requires std::unsigned_integral<PropertyType> || std::signed_integral<PropertyType> 
-	|| std::floating_point<PropertyType>
-	|| Array<PropertyType> || Pointer<PropertyType> 
-	|| String<PropertyType> || Buffer<PropertyType>
-	|| Boolean<PropertyType> || Enumeration<PropertyType>
-	struct NetPropertySettings
+	template_with_concept_base(NetPropertySettings, PropertyType, 
+		std::unsigned_integral<PropertyType> || std::signed_integral<PropertyType> || std::floating_point<PropertyType> || ArrayType<PropertyType> ||
+		Pointer<PropertyType> || StringType<PropertyType> || Buffer<PropertyType> || Boolean<PropertyType> || Enumeration<PropertyType>)
 	{
 	};
 
-	template <std::signed_integral T>
-	struct NetPropertySettings<T>
+	template_with_concept_declare(std::signed_integral, is_signed_integral_type<, NetPropertySettings, T)
 	{
 		T Min;
 		T Max;
 
-		NetPropertySettings()
-			: Min(std::numeric_limits<T>::min())
-			, Max(std::numeric_limits<T>::max())
-		{
+		NetPropertySettings() :
+				Min(std::numeric_limits<T>::min()), Max(std::numeric_limits<T>::max()) {
 		}
-		NetPropertySettings(const T InMin, const T InMax)
-			: Min(InMin)
-			, Max(InMax)
-		{
+		NetPropertySettings(const T InMin, const T InMax) :
+				Min(InMin), Max(InMax) {
 		}
 	};
 
-	template <std::unsigned_integral T>
-	struct NetPropertySettings<T>
+	template_with_concept_declare(std::unsigned_integral, is_unsigned_integral_type < , NetPropertySettings, T)
 	{
 		T Max;
 
-		NetPropertySettings()
-			: Max(std::numeric_limits<T>::max())
-		{
+		NetPropertySettings() :
+				Max(std::numeric_limits<T>::max()) {
 		}
-		NetPropertySettings(const T InMax)
-			: Max(InMax)
-		{
+		NetPropertySettings(const T InMax) :
+				Max(InMax) {
 		}
 	};
 
-	template <Array T>
-	struct NetPropertySettings<T>
+	template_with_concept_declare(ArrayType, ArrayType<, NetPropertySettings, T)
 	{
 		T Max[std::rank_v<T>];
 
@@ -109,23 +60,23 @@ namespace serialization
 		}
 
 	};
-	template <Enumeration T>
-	struct NetPropertySettings<T>
+
+	template_with_concept_declare(Enumeration, Enumeration<, NetPropertySettings, T)
 	{
 		std::underlying_type_t<T> Max;
 
 		NetPropertySettings()
 		{
-			Max = std::to_underlying(T::Count);
+			Max = to_underlying(T::Count);
 		}
 
 		NetPropertySettings(const T InCount)
-			: Max(std::to_underlying(InCount))
+			: Max(to_underlying(InCount))
 		{
 		}
 	};
-	template <std::floating_point T>
-	struct NetPropertySettings<T>
+
+	template_with_concept_declare(Float, Float<, NetPropertySettings, T)
 	{
 
 		T Min = std::numeric_limits<T>::min();
@@ -154,9 +105,7 @@ namespace serialization
 		}
 	};
 
-
-	template <String T>
-	struct NetPropertySettings<T>
+	template_with_concept_declare(StringType, StringType<, NetPropertySettings, T)
 	{
 		std::size_t Length = 0;
 
@@ -178,8 +127,7 @@ namespace serialization
 		}
 	};
 
-	template <Buffer T>
-	struct NetPropertySettings<T>
+	template_with_concept_declare(Buffer, Buffer<, NetPropertySettings, T)
 	{
 		std::size_t Length = 0;
 
@@ -188,22 +136,5 @@ namespace serialization
 		{
 		}
 	};
-	
-	/*
-	template struct NetPropertySettings<bool>;
-	template struct NetPropertySettings<proto::INetObject*>;
-	template struct NetPropertySettings<int8_t>;
-	template struct NetPropertySettings<int16_t>;
-	template struct NetPropertySettings<int32_t>;
-	template struct NetPropertySettings<int64_t>;
-	template struct NetPropertySettings<uint8_t>;
-	template struct NetPropertySettings<uint16_t>;
-	template struct NetPropertySettings<uint32_t>;
-	template struct NetPropertySettings<uint64_t>;
-	template struct NetPropertySettings<float>;
-	template struct NetPropertySettings<double>;
-	template struct NetPropertySettings<std::string>;
-	template struct NetPropertySettings<char*>;
-	template struct NetPropertySettings<unsigned char*>;
-	template struct NetPropertySettings<uint8_t*>;*/
+
 }
